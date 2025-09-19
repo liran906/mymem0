@@ -14,7 +14,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Load environment variables
 load_dotenv()
 
-
 # Qdrant configuration
 QDRANT_HOST = os.environ.get("QDRANT_HOST", "qdrant")
 QDRANT_PORT = os.environ.get("QDRANT_PORT", "6333")
@@ -24,6 +23,11 @@ QDRANT_COLLECTION_NAME = os.environ.get("QDRANT_COLLECTION_NAME", "memories")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
+
+# Neo4j configuration
+# NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
+# NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
+# NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "mem0graph")
 
 DEFAULT_CONFIG = {
     "version": "v1.1",
@@ -35,6 +39,10 @@ DEFAULT_CONFIG = {
             "collection_name": QDRANT_COLLECTION_NAME,
         },
     },
+    # "graph_store": {
+    #     "provider": "neo4j",
+    #     "config": {"url": NEO4J_URI, "username": NEO4J_USERNAME, "password": NEO4J_PASSWORD},
+    # },
     # Remove graph_store to disable graph database functionality
     "llm": {
         "provider": "deepseek",

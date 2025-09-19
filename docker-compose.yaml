@@ -52,9 +52,32 @@ services:
       - mem0_network
     restart: unless-stopped
 
+#  neo4j:
+#    image: neo4j:5.26.4
+#    networks:
+#      - mem0_network
+#    healthcheck:
+#      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "mem0graph", "RETURN 1"]
+#      interval: 10s
+#      timeout: 10s
+#      retries: 20
+#      start_period: 90s
+#    ports:
+#      - "8474:7474" # HTTP
+#      - "8687:7687" # Bolt
+#    volumes:
+#      - neo4j_data:/data
+#    environment:
+#      - NEO4J_AUTH=neo4j/mem0graph
+#      - NEO4J_PLUGINS=["apoc"]  # Add this line to install APOC
+#      - NEO4J_apoc_export_file_enabled=true
+#      - NEO4J_apoc_import_file_enabled=true
+#      - NEO4J_apoc_import_file_use__neo4j__config=true
+
 volumes:
   qdrant_storage:
     driver: local
+  neo4j_data:
 
 networks:
   mem0_network:
