@@ -17,8 +17,8 @@ RUN sed '/mem0ai/d' requirements.txt > requirements_no_mem0.txt && \
 COPY mem0 /app/mem0
 COPY performance_monitoring /app/performance_monitoring
 
-# Install dependencies for mem0
-RUN pip install --no-cache-dir openai posthog protobuf pytz qdrant-client sqlalchemy
+# Install dependencies for mem0 (including PostgreSQL support)
+RUN pip install --no-cache-dir openai posthog protobuf pytz qdrant-client sqlalchemy psycopg2-binary
 
 # Copy application code
 COPY server .

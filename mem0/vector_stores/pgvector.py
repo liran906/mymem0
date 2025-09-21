@@ -96,7 +96,7 @@ class PGVector(VectorStoreBase):
         else:
             connection_string = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
             if sslmode:
-                connection_string = f"{connection_string} sslmode={sslmode}"
+                connection_string = f"{connection_string}?sslmode={sslmode}"
         
         if self.connection_pool is None:
             if PSYCOPG_VERSION == 3:

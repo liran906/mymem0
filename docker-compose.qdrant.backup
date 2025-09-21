@@ -1,24 +1,17 @@
 version: '3.8'
 
 services:
-  postgres:
-      image: ankane/pgvector:v0.5.1
-      restart: on-failure
-      shm_size: "128mb" # Increase this if vacuuming fails with a "no space left on device" error
-      networks:
-        - mem0_network
-      environment:
-        - POSTGRES_USER=postgres
-        - POSTGRES_PASSWORD=postgres
-      healthcheck:
-        test: ["CMD", "pg_isready", "-q", "-d", "postgres", "-U", "postgres"]
-        interval: 5s
-        timeout: 5s
-        retries: 5
-      volumes:
-        - postgres_db:/var/lib/postgresql/data
-      ports:
-        - "8432:5432"
+  qdrant:
+    image: qdrant/qdrant
+    container_name: mem0-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"  # Qdrant内置Web UI
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - mem0_network
+    restart: unless-stopped
 
   mem0-service:
     build:
@@ -30,20 +23,14 @@ services:
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      # PostgreSQL配置
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_COLLECTION=memories
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION_NAME=memories
       - HISTORY_DB_PATH=/app/history/history.db
-      - EMBEDDING_MODEL_DIMS=1536
     volumes:
       - ./history:/app/history
     depends_on:
-      postgres:
-        condition: service_healthy
+      - qdrant
     networks:
       - mem0_network
     restart: unless-stopped
@@ -88,7 +75,7 @@ services:
 #      - NEO4J_apoc_import_file_use__neo4j__config=true
 
 volumes:
-  postgres_db:
+  qdrant_storage:
     driver: local
   neo4j_data:
 

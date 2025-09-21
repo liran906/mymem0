@@ -14,14 +14,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Load environment variables
 load_dotenv()
 
-# PostgreSQL configuration
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
-POSTGRES_PORT = int(os.environ.get("POSTGRES_PORT", "5432"))
-POSTGRES_DB = os.environ.get("POSTGRES_DB", "postgres")
-POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "postgres")
-POSTGRES_COLLECTION = os.environ.get("POSTGRES_COLLECTION", "memories")
-EMBEDDING_MODEL_DIMS = int(os.environ.get("EMBEDDING_MODEL_DIMS", "1536"))
+# Qdrant configuration
+QDRANT_HOST = os.environ.get("QDRANT_HOST", "qdrant")
+QDRANT_PORT = os.environ.get("QDRANT_PORT", "6333")
+QDRANT_COLLECTION_NAME = os.environ.get("QDRANT_COLLECTION_NAME", "memories")
 
 # API Keys
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
@@ -36,20 +32,11 @@ HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
 DEFAULT_CONFIG = {
     "version": "v1.1",
     "vector_store": {
-        "provider": "pgvector",
+        "provider": "qdrant",
         "config": {
-            "dbname": POSTGRES_DB,
-            "collection_name": POSTGRES_COLLECTION,
-            "embedding_model_dims": EMBEDDING_MODEL_DIMS,
-            "user": POSTGRES_USER,
-            "password": POSTGRES_PASSWORD,
-            "host": POSTGRES_HOST,
-            "port": POSTGRES_PORT,
-            "hnsw": True,
-            "diskann": False,
-            "minconn": 1,
-            "maxconn": 10,
-            "sslmode": "disable"
+            "host": QDRANT_HOST,
+            "port": int(QDRANT_PORT),
+            "collection_name": QDRANT_COLLECTION_NAME,
         },
     },
     # "graph_store": {

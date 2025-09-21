@@ -32,8 +32,8 @@
 2025-09-19 14:52:18,254 - {"step": "vector_search.result_processing", "duration_ms": 0.094, "timestamp": "2025-09-19T14:52:18.254771", "processed_memories": 10, "final_results": 8, "filtered_by_threshold": 2, "threshold": 0.2}
 2025-09-19 14:52:18,255 - {"step": "search.concurrent_execution", "duration_ms": 382.062, "timestamp": "2025-09-19T14:52:18.255045", "graph_enabled": false, "memory_results": 8, "graph_results": 0}
 2025-09-19 14:52:18,255 - {"step": "search.format_result", "duration_ms": 0.002, "timestamp": "2025-09-19T14:52:18.255145"}
-
 2025-09-19 14:52:18,255 - {"event": "search_summary", "total_duration_ms": 387.958, "query_length": 4, "user_id": "user_004", "result_count": 8, "filters": {"user_id": "user_004"}, "timestamp": "2025-09-19T14:52:18.255186"}
+
 2025-09-19 14:52:24,427 - {"step": "search.build_filters", "duration_ms": 0.085, "timestamp": "2025-09-19T14:52:24.421019", "filter_count": 1, "user_id": "user_004", "agent_id": ""}
 2025-09-19 14:52:24,457 - {"step": "search.telemetry", "duration_ms": 28.224, "timestamp": "2025-09-19T14:52:24.457397"}
 2025-09-19 14:52:24,955 - {"step": "vector_search.embedding", "duration_ms": 495.1, "timestamp": "2025-09-19T14:52:24.954911", "query_length": 3, "embedding_model": "OpenAIEmbedding"}
@@ -58,27 +58,27 @@
 2025-09-19 14:52:27,019 - {"step": "vector_search.database_search", "duration_ms": 16.296, "timestamp": "2025-09-19T14:52:27.019703", "limit": 10, "filter_count": 1, "raw_results": 10}
 2025-09-19 14:52:27,019 - {"step": "vector_search.result_processing", "duration_ms": 0.066, "timestamp": "2025-09-19T14:52:27.019852", "processed_memories": 10, "final_results": 10, "filtered_by_threshold": 0, "threshold": 0.2}
 2025-09-19 14:52:27,020 - {"step": "search.concurrent_execution", "duration_ms": 419.793, "timestamp": "2025-09-19T14:52:27.020069", "graph_enabled": false, "memory_results": 10, "graph_results": 0}
-
 2025-09-19 14:52:27,020 - {"step": "search.format_result", "duration_ms": 0.001, "timestamp": "2025-09-19T14:52:27.020130"}
 2025-09-19 14:52:27,020 - {"event": "search_summary", "total_duration_ms": 425.884, "query_length": 3, "user_id": "user_004", "result_count": 10, "filters": {"user_id": "user_004"}, "timestamp": "2025-09-19T14:52:27.020154"}
+
 2025-09-19 14:52:27,613 - {"step": "search.build_filters", "duration_ms": 0.009, "timestamp": "2025-09-19T14:52:27.613350", "filter_count": 1, "user_id": "user_004", "agent_id": ""}
 2025-09-19 14:52:27,618 - {"step": "search.telemetry", "duration_ms": 4.581, "timestamp": "2025-09-19T14:52:27.618319"}
 2025-09-19 14:52:28,362 - {"step": "vector_search.embedding", "duration_ms": 743.764, "timestamp": "2025-09-19T14:52:28.362729", "query_length": 3, "embedding_model": "OpenAIEmbedding"}
 2025-09-19 14:52:28,381 - {"step": "vector_search.database_search", "duration_ms": 17.864, "timestamp": "2025-09-19T14:52:28.380992", "limit": 10, "filter_count": 1, "raw_results": 10}
 2025-09-19 14:52:28,381 - {"step": "vector_search.result_processing", "duration_ms": 0.078, "timestamp": "2025-09-19T14:52:28.381170", "processed_memories": 10, "final_results": 10, "filtered_by_threshold": 0, "threshold": 0.2}
 2025-09-19 14:52:28,381 - {"step": "search.concurrent_execution", "duration_ms": 762.883, "timestamp": "2025-09-19T14:52:28.381419", "graph_enabled": false, "memory_results": 10, "graph_results": 0}
-
 2025-09-19 14:52:28,381 - {"step": "search.format_result", "duration_ms": 0.001, "timestamp": "2025-09-19T14:52:28.381573"}
 2025-09-19 14:52:28,381 - {"event": "search_summary", "total_duration_ms": 768.297, "query_length": 3, "user_id": "user_004", "result_count": 10, "filters": {"user_id": "user_004"}, "timestamp": "2025-09-19T14:52:28.381619"}
+
 2025-09-19 14:52:34,145 - {"step": "search.build_filters", "duration_ms": 0.006, "timestamp": "2025-09-19T14:52:34.145168", "filter_count": 1, "user_id": "user_004", "agent_id": ""}
 2025-09-19 14:52:34,155 - {"step": "search.telemetry", "duration_ms": 9.83, "timestamp": "2025-09-19T14:52:34.155359"}
 2025-09-19 14:52:34,570 - {"step": "vector_search.embedding", "duration_ms": 413.76, "timestamp": "2025-09-19T14:52:34.570608", "query_length": 3, "embedding_model": "OpenAIEmbedding"}
 2025-09-19 14:52:34,597 - {"step": "vector_search.database_search", "duration_ms": 26.376, "timestamp": "2025-09-19T14:52:34.597220", "limit": 10, "filter_count": 1, "raw_results": 10}
 2025-09-19 14:52:34,597 - {"step": "vector_search.result_processing", "duration_ms": 0.11, "timestamp": "2025-09-19T14:52:34.597449", "processed_memories": 10, "final_results": 10, "filtered_by_threshold": 0, "threshold": 0.2}
 2025-09-19 14:52:34,597 - {"step": "search.concurrent_execution", "duration_ms": 441.781, "timestamp": "2025-09-19T14:52:34.597715", "graph_enabled": false, "memory_results": 10, "graph_results": 0}
-
 2025-09-19 14:52:34,597 - {"step": "search.format_result", "duration_ms": 0.001, "timestamp": "2025-09-19T14:52:34.597803"}
 2025-09-19 14:52:34,597 - {"event": "search_summary", "total_duration_ms": 452.688, "query_length": 3, "user_id": "user_004", "result_count": 10, "filters": {"user_id": "user_004"}, "timestamp": "2025-09-19T14:52:34.597838"}
+
 2025-09-19 14:52:35,405 - {"step": "search.build_filters", "duration_ms": 0.007, "timestamp": "2025-09-19T14:52:35.404958", "filter_count": 1, "user_id": "user_004", "agent_id": ""}
 2025-09-19 14:52:35,409 - {"step": "search.telemetry", "duration_ms": 4.45, "timestamp": "2025-09-19T14:52:35.409727"}
 2025-09-19 14:52:35,902 - {"step": "vector_search.embedding", "duration_ms": 491.583, "timestamp": "2025-09-19T14:52:35.902301", "query_length": 3, "embedding_model": "OpenAIEmbedding"}
