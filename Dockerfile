@@ -3,7 +3,9 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # 使用阿里云 Debian 镜像源，加速 apt-get
-RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list \
+RUN echo "deb https://mirrors.aliyun.com/debian/ trixie main" > /etc/apt/sources.list.d/aliyun.list \
+    && echo "deb https://mirrors.aliyun.com/debian/ trixie-updates main" >> /etc/apt/sources.list.d/aliyun.list \
+    && echo "deb https://mirrors.aliyun.com/debian-security/ trixie-security main" >> /etc/apt/sources.list.d/aliyun.list \
     && apt-get update \
     && apt-get install -y gcc g++ \
     && rm -rf /var/lib/apt/lists/*
@@ -32,6 +34,6 @@ EXPOSE 8000
 
 ENV PYTHONUNBUFFERED=1
 # Add both mem0 source and performance monitoring to Python path
-ENV PYTHONPATH="/app:/app/performance_monitoring:${PYTHONPATH}"
+ENV PYTHONPATH="/app:/app/performance_monitoring"
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
