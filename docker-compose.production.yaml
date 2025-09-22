@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    restart: unless-stopped
+    shm_size: "128mb"
+    networks:
+      - mem0_network
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "postgres", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  mem0-service:
+    image: mem0-service:amd64
+    restart: unless-stopped
+    container_name: mem0-api
+    ports:
+      - "8000:8000"
+    environment:
+      # 在服务器上设置这些环境变量
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # PostgreSQL配置
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_COLLECTION=memories
+      - EMBEDDING_MODEL_DIMS=1536
+
+      # 其他配置
+      - HISTORY_DB_PATH=/app/history/history.db
+    volumes:
+      - ./history:/app/history
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mem0_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  mem0_network:
+    driver: bridge
