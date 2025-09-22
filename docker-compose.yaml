@@ -23,7 +23,7 @@ services:
   mem0-service:
     build:
       context: .
-      dockerfile: ./server/Dockerfile
+      dockerfile: Dockerfile
     container_name: mem0-api
     ports:
       - "18088:8000"
