@@ -139,6 +139,8 @@ class EmbedderFactory:
         "lmstudio": "mem0.embeddings.lmstudio.LMStudioEmbedding",
         "langchain": "mem0.embeddings.langchain.LangchainEmbedding",
         "aws_bedrock": "mem0.embeddings.aws_bedrock.AWSBedrockEmbedding",
+        "doubao": "mem0.embeddings.doubao.DoubaoEmbedding",
+        "qwen": "mem0.embeddings.qwen.QwenEmbedding",
     }
 
     @classmethod

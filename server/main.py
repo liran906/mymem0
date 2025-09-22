@@ -26,6 +26,8 @@ EMBEDDING_MODEL_DIMS = int(os.environ.get("EMBEDDING_MODEL_DIMS", "1536"))
 # API Keys
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+DOUBAO_API_KEY = os.environ.get("DOUBAO_API_KEY")
+DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
 
 # Neo4j configuration
@@ -67,10 +69,12 @@ DEFAULT_CONFIG = {
         }
     },
     "embedder": {
-        "provider": "openai",
+        "provider": "qwen",
         "config": {
-            "api_key": OPENAI_API_KEY,
-            "model": "text-embedding-3-small"
+            "api_key": DASHSCOPE_API_KEY,
+            "model": "text-embedding-v4",
+            "qwen_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "embedding_dims": 1536
         }
     },
     "history_db_path": HISTORY_DB_PATH,

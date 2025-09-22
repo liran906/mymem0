@@ -23,6 +23,7 @@ services:
   mem0-service:
     build:
       context: .
+#      dockerfile: Dockerfile_dev
       dockerfile: Dockerfile
     container_name: mem0-api
     ports:
@@ -30,6 +31,8 @@ services:
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DOUBAO_API_KEY=${DOUBAO_API_KEY}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
       # PostgreSQL配置
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432

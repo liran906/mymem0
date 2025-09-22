@@ -40,6 +40,10 @@ class BaseEmbedderConfig(ABC):
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
         aws_region: Optional[str] = None,
+        # Doubao specific
+        doubao_base_url: Optional[str] = "https://ark.cn-beijing.volces.com/api/v3",
+        # Qwen specific
+        qwen_base_url: Optional[str] = "https://dashscope.aliyuncs.com/compatible-mode/v1",
     ):
         """
         Initializes a configuration class instance for the Embeddings.
@@ -107,4 +111,10 @@ class BaseEmbedderConfig(ABC):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_region = aws_region or os.environ.get("AWS_REGION") or "us-west-2"
+
+        # Doubao specific
+        self.doubao_base_url = doubao_base_url
+
+        # Qwen specific
+        self.qwen_base_url = qwen_base_url
 

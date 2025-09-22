@@ -24,6 +24,8 @@ class EmbedderConfig(BaseModel):
             "lmstudio",
             "langchain",
             "aws_bedrock",
+            "doubao",
+            "qwen",
         ]:
             return v
         else:

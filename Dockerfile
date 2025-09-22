@@ -21,10 +21,10 @@ RUN sed '/mem0ai/d' requirements.txt > requirements_no_mem0.txt && \
 COPY mem0 /app/mem0
 COPY performance_monitoring /app/performance_monitoring
 
-# Install dependencies for mem0 (including PostgreSQL support)
+# Install dependencies for mem0 (including PostgreSQL support and Doubao SDK)
 RUN pip install --no-cache-dir \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    openai posthog protobuf pytz qdrant-client sqlalchemy psycopg2-binary
+    openai posthog protobuf pytz qdrant-client sqlalchemy psycopg2-binary volcengine-python-sdk
 
 # Copy application code
 COPY server .
