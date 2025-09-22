@@ -3,10 +3,11 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # 使用阿里云 Debian 镜像源，加速 apt-get
-RUN rm -f /etc/apt/sources.list \
-    && echo "deb https://mirrors.aliyun.com/debian/ trixie main" > /etc/apt/sources.list \
-    && echo "deb https://mirrors.aliyun.com/debian/ trixie-updates main" >> /etc/apt/sources.list \
-    && echo "deb https://mirrors.aliyun.com/debian-security/ trixie-security main" >> /etc/apt/sources.list \
+RUN rm -rf /etc/apt/sources.list* \
+    && echo "deb https://mirrors.aliyun.com/debian/ trixie main contrib non-free" > /etc/apt/sources.list \
+    && echo "deb https://mirrors.aliyun.com/debian/ trixie-updates main contrib non-free" >> /etc/apt/sources.list \
+    && echo "deb https://mirrors.aliyun.com/debian-security/ trixie-security main contrib non-free" >> /etc/apt/sources.list \
+    && rm -rf /var/lib/apt/lists/* \
     && apt-get update \
     && apt-get install -y gcc g++ \
     && rm -rf /var/lib/apt/lists/*
