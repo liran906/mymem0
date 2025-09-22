@@ -1,2 +1,3 @@
 test/dify_config.json
 .env
+*.tar
