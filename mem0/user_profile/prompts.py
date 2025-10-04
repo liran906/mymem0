@@ -54,38 +54,47 @@ Return a JSON object with this structure:
                 ]
             }}
         ],
-        "social_context": [
-            {{
-                "name": "family",
-                "details": "已婚，有一个5岁的女儿",
-                "evidence": [
-                    {{"text": "女儿今年上幼儿园了", "timestamp": "2025-10-04T08:00:00"}}
-                ]
+        "social_context": {{
+            "family": {{
+                "father": {{
+                    "name": "John",
+                    "career": "doctor",
+                    "info": ["kind and loving", "plays football"]
+                }},
+                "mother": {{
+                    "name": "Mary",
+                    "career": "teacher",
+                    "info": ["strict", "cooks delicious meals"]
+                }}
             }},
-            {{
-                "name": "teachers",
-                "details": [{{"name": "Amy", "subject": "math", "info": ["kind and loving", "plays football"]}}],
-                "evidence": [
-                    {{"text": "数学老师Amy对我很好", "timestamp": "2025-10-04T09:00:00"}}
-                ]
-            }},
-            {{
-                "name": "others",
-                "details": [{{"name": "Jack", "relation": "friend", "info": ["plays basketball"]}}],
-                "evidence": [
-                    {{"text": "Jack是我的好朋友，他喜欢打篮球", "timestamp": "2025-10-04T10:00:00"}}
-                ]
-            }}
-        ],
-        "learning_preferences": [
-            {{
-                "name": "视觉学习者",
-                "details": "喜欢通过图表和视频学习",
-                "evidence": [
-                    {{"text": "看视频教程学得更快", "timestamp": "2025-10-05T16:30:00"}}
-                ]
-            }}
-        ]
+            "friends": [
+                {{
+                    "name": "Amy",
+                    "info": ["kind and loving", "plays football"]
+                }},
+                {{
+                    "name": "Bob",
+                    "info": ["fair", "good at drawing"]
+                }}
+            ],
+            "others": [
+                {{
+                    "name": "Jack",
+                    "relation": "brother",
+                    "info": ["plays basketball", "likes movies"]
+                }},
+                {{
+                    "name": "Lisa",
+                    "relation": "neighbor",
+                    "info": ["has a dog", "friendly"]
+                }}
+            ]
+        }},
+        "learning_preferences": {{
+            "preferred_time": "evening",
+            "preferred_style": "visual",
+            "difficulty_level": "intermediate"
+        }}
     }}
 }}
 ```
@@ -93,13 +102,28 @@ Return a JSON object with this structure:
 ## Important Rules
 
 1. **Evidence-based**: Every extracted attribute must have evidence (text + timestamp)
+   - For interests, skills, personality: Include evidence array with text and timestamp
+
 2. **Degree system**:
    - For interests: 1=不太喜欢, 2=一般, 3=喜欢, 4=很喜欢, 5=最爱
    - For skills: 1=初学, 2=入门, 3=熟练, 4=精通, 5=专家
    - For personality: 1=不明显, 2=较弱, 3=中等, 4=较强, 5=非常明显
-3. **Timestamp**: Use the message timestamp or current time if not available
-4. **Only extract explicit information**: Don't infer or guess
-5. **Return null for missing fields**: If no information found, return null or empty object
+
+3. **social_context structure** (nested object, NOT array):
+   - family: Object with father/mother/siblings keys
+   - friends: Array of friends with name and info
+   - others: Array of other relations (brother, neighbor, etc.) with name, relation, and info
+
+4. **learning_preferences structure** (object, NOT array):
+   - preferred_time: "morning" / "afternoon" / "evening"
+   - preferred_style: "visual" / "auditory" / "kinesthetic"
+   - difficulty_level: "beginner" / "intermediate" / "advanced"
+
+5. **Timestamp**: Use the message timestamp or current time if not available
+
+6. **Only extract explicit information**: Don't infer or guess
+
+7. **Return null for missing fields**: If no information found, return null or empty object
 
 ## Examples
 
