@@ -26,6 +26,37 @@ class MemoryItem(BaseModel):
     updated_at: Optional[str] = Field(None, description="The timestamp when the memory was updated")
 
 
+class UserProfileConfig(BaseModel):
+    """
+    Configuration for UserProfile module
+
+    Args:
+        postgres: PostgreSQL configuration for basic_info
+        mongodb: MongoDB configuration for additional_profile
+    """
+
+    postgres: Dict[str, Any] = Field(
+        description="PostgreSQL configuration for basic_info storage",
+        default_factory=lambda: {
+            "host": os.getenv("POSTGRES_HOST", "localhost"),
+            "port": int(os.getenv("POSTGRES_PORT", "5432")),
+            "user": os.getenv("POSTGRES_USER", "postgres"),
+            "password": os.getenv("POSTGRES_PASSWORD", "postgres"),
+            "database": os.getenv("POSTGRES_DB", "postgres"),
+            "minconn": 1,
+            "maxconn": 5,
+        },
+    )
+    mongodb: Dict[str, Any] = Field(
+        description="MongoDB configuration for additional_profile storage",
+        default_factory=lambda: {
+            "uri": os.getenv("MONGODB_URI", "mongodb://localhost:27017/"),
+            "database": os.getenv("MONGODB_DATABASE", "mem0"),
+            "collection": "user_additional_profile",
+        },
+    )
+
+
 class MemoryConfig(BaseModel):
     vector_store: VectorStoreConfig = Field(
         description="Configuration for the vector store",
@@ -58,6 +89,10 @@ class MemoryConfig(BaseModel):
     custom_update_memory_prompt: Optional[str] = Field(
         description="Custom prompt for the update memory",
         default=None,
+    )
+    user_profile: UserProfileConfig = Field(
+        description="Configuration for the UserProfile module",
+        default_factory=UserProfileConfig,
     )
 
 

@@ -20,6 +20,25 @@ services:
       ports:
         - "8432:5432"
 
+  mongodb:
+    image: mongo:7.0
+    container_name: mem0-mongodb
+    restart: on-failure
+    networks:
+      - mem0_network
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongo
+      - MONGO_INITDB_ROOT_PASSWORD=mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+
   mem0-service:
     build:
       context: .
@@ -40,12 +59,17 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_COLLECTION=memories
+      # MongoDB配置
+      - MONGODB_URI=mongodb://mongo:mongo@mongodb:27017/
+      - MONGODB_DATABASE=mem0
       - HISTORY_DB_PATH=/app/history/history.db
       - EMBEDDING_MODEL_DIMS=1536
     volumes:
       - ./history:/app/history
     depends_on:
       postgres:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     networks:
       - mem0_network
@@ -92,6 +116,8 @@ services:
 
 volumes:
   postgres_db:
+    driver: local
+  mongodb_data:
     driver: local
   neo4j_data:
 
