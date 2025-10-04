@@ -123,7 +123,11 @@ class MongoDBManager:
             user_id: User ID
             options: Query options
                 - fields: List of field names to return (e.g., ['interests', 'skills'])
-                - evidence_limit: Max number of evidence items to return per item (default 5, -1 for all)
+                - evidence_limit: Control evidence return behavior:
+                    * 0: Remove all evidence (return empty arrays)
+                    * Positive N: Return latest N evidence items (sorted by timestamp desc)
+                    * -1: Return all evidence
+                    * Not specified: Use default behavior
                 - If None, return all fields
 
         Returns:
@@ -149,13 +153,39 @@ class MongoDBManager:
             # Apply evidence_limit if specified
             if result and options and 'evidence_limit' in options:
                 evidence_limit = options['evidence_limit']
-                if evidence_limit != -1:  # -1 means return all
+                if evidence_limit == 0:
+                    # 0 means remove all evidence
+                    result = self._remove_evidence(result)
+                elif evidence_limit > 0:
+                    # Positive number means limit to N items
                     result = self._limit_evidence(result, evidence_limit)
+                # -1 means return all evidence (no processing needed)
 
             return result
         except PyMongoError as e:
             logger.error(f"Failed to get additional_profile for user {user_id}: {e}")
             raise
+
+    def _remove_evidence(self, profile: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Remove all evidence from profile data
+
+        Args:
+            profile: Profile data dictionary
+
+        Returns:
+            Profile with evidence removed (empty arrays)
+        """
+        # Fields that contain evidence arrays
+        evidence_fields = ['interests', 'skills', 'personality', 'social_context', 'learning_preferences']
+
+        for field in evidence_fields:
+            if field in profile and isinstance(profile[field], list):
+                for item in profile[field]:
+                    if isinstance(item, dict) and 'evidence' in item:
+                        item['evidence'] = []
+
+        return profile
 
     def _limit_evidence(self, profile: Dict[str, Any], limit: int) -> Dict[str, Any]:
         """

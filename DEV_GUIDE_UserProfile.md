@@ -288,6 +288,30 @@ CREATE TRIGGER update_user_profile_updated_at
         "friends": [
             {"name": "Tom", "relation": "classmate"},
             {"name": "Jerry", "relation": "neighbor"}
+        ],
+        "teachers": [
+            {
+                "name": "Amy",
+                "subject": "math",
+                "info": ["kind and loving", "plays football"]
+            },
+            {
+                "name": "Bob",
+                "subject": "english",
+                "info": ["strict but fair", "good at pronunciation"]
+            }
+        ],
+        "others": [
+            {
+                "name": "Jack",
+                "relation": "friend",  // friend, relative, colleague, neighbor, etc.
+                "info": ["plays basketball", "likes movies"]
+            },
+            {
+                "name": "Lisa",
+                "relation": "neighbor",
+                "info": ["has a dog", "friendly"]
+            }
         ]
     },
 

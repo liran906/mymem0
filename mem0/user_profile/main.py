@@ -154,8 +154,11 @@ class UserProfile:
                 - fields: List of field names to return from additional_profile
                   Example: {"fields": ["interests", "skills"]}
                   If None, returns all fields
-                - evidence_limit: Max number of evidence items per entry (default 5, -1 for all)
-                  Example: {"evidence_limit": 10} or {"evidence_limit": -1}
+                - evidence_limit: Control evidence return behavior (default 5):
+                  * 0: Remove all evidence (return empty arrays)
+                  * Positive N: Return latest N evidence items
+                  * -1: Return all evidence
+                  Example: {"evidence_limit": 0}, {"evidence_limit": 10}, {"evidence_limit": -1}
 
         Returns:
             Profile dict with basic_info and additional_profile:

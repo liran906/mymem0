@@ -331,8 +331,10 @@ def get_profile(
         user_id: User ID (required)
         fields: Comma-separated list of fields to return from additional_profile
                 e.g., "interests,skills" (optional, returns all if not specified)
-        evidence_limit: Max number of evidence items to return per entry
-                       Default: 5, use -1 for all evidence
+        evidence_limit: Control evidence return behavior (default 5):
+                       * 0: Remove all evidence (return empty arrays)
+                       * Positive N: Return latest N evidence items
+                       * -1: Return all evidence
 
     Returns:
         dict: User profile with basic_info and additional_profile
