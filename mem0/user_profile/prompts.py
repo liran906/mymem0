@@ -112,15 +112,23 @@ Return a JSON object with this structure:
    - For skills: 1=beginner, 2=learning, 3=proficient, 4=advanced, 5=expert
    - For personality: 1=not obvious, 2=weak, 3=moderate, 4=strong, 5=very strong
 
-4. **social_context structure** (nested object, NOT array):
-   - family: Object with father/mother keys (NO siblings - siblings go to "others")
-   - friends: Array of friends with name and info (NO relation field needed)
-   - others: Array of other relations (teachers, siblings, relatives, neighbors, etc.) with name, relation, and info
+4. **social_context extraction**: Extract user's mentioned social relationships
+   - family: Parent information - extract when user mentions father/mother (name, career, info)
+   - friends: Friend information - extract when user mentions friends (name, info)
+     * NO relation field needed for friends (they are all friends)
+   - others: Other relations - extract when user mentions teachers, siblings, relatives, neighbors, etc.
+     * MUST include name, relation, and info
+     * Examples: siblings (哥哥/弟弟/姐姐/妹妹), teachers (老师), relatives (亲戚), neighbors (邻居)
+   - Structure: nested object (NOT array)
+     * family: Object with father/mother keys (NO siblings - siblings go to "others")
+     * friends: Array of objects
+     * others: Array of objects
 
-5. **learning_preferences structure** (object, NOT array):
-   - preferred_time: "morning" / "afternoon" / "evening"
-   - preferred_style: "visual" / "auditory" / "kinesthetic"
-   - difficulty_level: "beginner" / "intermediate" / "advanced"
+5. **learning_preferences extraction**: Extract learning preferences when mentioned
+   - preferred_time: When user prefers to study - extract from mentions like "晚上学习", "早上效率高" → "morning" / "afternoon" / "evening"
+   - preferred_style: How user likes to learn - extract from mentions like "看视频", "听讲座", "动手实践" → "visual" / "auditory" / "kinesthetic"
+   - difficulty_level: Current learning level - extract from mentions like "初学者", "中级", "高级" → "beginner" / "intermediate" / "advanced"
+   - Structure: object (NOT array)
 
 6. **Only extract explicit information**: Don't infer or guess
 

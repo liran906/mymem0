@@ -141,6 +141,33 @@ class ProfileManager:
 
         return process_item(data)
 
+    def _clean_object_field(self, field_value: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Clean object fields (social_context, learning_preferences) by removing operation metadata
+
+        Removes: id, event, evidence (these are only for list-based fields like interests/skills/personality)
+
+        Args:
+            field_value: The field value from LLM (may contain id, event, evidence)
+
+        Returns:
+            Cleaned field value without operation metadata
+        """
+        def clean_item(obj):
+            if isinstance(obj, dict):
+                # Remove id, event, evidence from objects
+                return {
+                    k: clean_item(v)
+                    for k, v in obj.items()
+                    if k not in ["id", "event", "evidence"]
+                }
+            elif isinstance(obj, list):
+                return [clean_item(item) for item in obj]
+            else:
+                return obj
+
+        return clean_item(field_value)
+
     def extract_profile(self, messages: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
         """
         Stage 1: Extract profile information from messages using LLM
@@ -319,11 +346,27 @@ class ProfileManager:
                 # Query current additional_profile
                 current_profile = self.mongodb.get(user_id) or {}
 
-                # Process each field (interests, skills, personality, etc.)
-                for field_name, items in additional_profile.items():
-                    if not isinstance(items, list):
+                # Process each field
+                for field_name, field_value in additional_profile.items():
+                    # Handle object fields (social_context, learning_preferences)
+                    # These are direct replacements, no ADD/UPDATE/DELETE events
+                    if isinstance(field_value, dict) and (
+                        "family" in field_value
+                        or "friends" in field_value
+                        or "preferred_time" in field_value
+                    ):
+                        # Clean object fields: remove id, event, evidence (these are for list-based fields only)
+                        cleaned_value = self._clean_object_field(field_value)
+                        current_profile[field_name] = cleaned_value
+                        result["operations_performed"]["updated"] += 1
+                        logger.info(f"Updated {field_name} (object field)")
                         continue
 
+                    # Handle list fields (interests, skills, personality)
+                    if not isinstance(field_value, list):
+                        continue
+
+                    items = field_value
                     # Get current field data
                     current_field = current_profile.get(field_name, [])
 
