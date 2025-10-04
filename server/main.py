@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from mem0 import Memory
+from mem0.user_profile import UserProfile
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -82,6 +83,7 @@ DEFAULT_CONFIG = {
 
 
 MEMORY_INSTANCE = Memory.from_config(DEFAULT_CONFIG)
+USER_PROFILE_INSTANCE = UserProfile(MEMORY_INSTANCE.config)
 
 app = FastAPI(
     title="Mem0 REST APIs",
@@ -111,6 +113,19 @@ class SearchRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = None
     limit: int = Field(default=5, description="Maximum number of results to return")
     threshold: Optional[float] = Field(default=None, description="Minimum similarity threshold (0.0-1.0)")
+
+
+class ProfileCreate(BaseModel):
+    messages: List[Message] = Field(..., description="List of messages to extract profile from.")
+    user_id: str = Field(..., description="User ID (required).")
+
+
+class ProfileGetRequest(BaseModel):
+    user_id: str = Field(..., description="User ID (required).")
+    options: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Query options. e.g., {'fields': ['interests', 'skills']}"
+    )
 
 
 @app.post("/configure", summary="Configure Mem0")
@@ -250,3 +265,101 @@ def reset_memory():
 def home():
     """Redirect to the OpenAPI documentation."""
     return RedirectResponse(url="/docs")
+
+
+# ============================================
+# UserProfile Routes
+# ============================================
+
+@app.post("/profile", summary="Create or update user profile")
+def set_profile(profile_create: ProfileCreate):
+    """
+    Extract and update user profile from conversation messages.
+
+    This endpoint analyzes conversation messages to extract user profile information
+    including basic info (name, location, etc.) and additional profile (interests, skills, etc.).
+
+    Args:
+        profile_create: ProfileCreate object with messages and user_id
+
+    Returns:
+        dict: Result with update status and operations performed
+    """
+    try:
+        response = USER_PROFILE_INSTANCE.set_profile(
+            user_id=profile_create.user_id,
+            messages=[m.model_dump() for m in profile_create.messages]
+        )
+        return JSONResponse(content=response)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.exception("Error in set_profile:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/profile", summary="Get user profile")
+def get_profile(
+    user_id: str,
+    fields: Optional[str] = None
+):
+    """
+    Retrieve user profile data.
+
+    Args:
+        user_id: User ID (required)
+        fields: Comma-separated list of fields to return from additional_profile
+                e.g., "interests,skills" (optional, returns all if not specified)
+
+    Returns:
+        dict: User profile with basic_info and additional_profile
+    """
+    try:
+        options = None
+        if fields:
+            options = {"fields": [f.strip() for f in fields.split(",")]}
+
+        response = USER_PROFILE_INSTANCE.get_profile(
+            user_id=user_id,
+            options=options
+        )
+        return JSONResponse(content=response)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.exception("Error in get_profile:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/profile", summary="Delete user profile")
+def delete_profile(user_id: str):
+    """
+    Delete user profile completely.
+
+    Args:
+        user_id: User ID (required)
+
+    Returns:
+        dict: Deletion result with success status
+    """
+    try:
+        response = USER_PROFILE_INSTANCE.delete_profile(user_id=user_id)
+        return JSONResponse(content=response)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.exception("Error in delete_profile:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Placeholder for vocabulary feature (archived for Phase 2)
+@app.post("/vocab", summary="Vocabulary management (not implemented)")
+def set_vocab():
+    """Placeholder for vocabulary management feature (Phase 2)."""
+    raise HTTPException(status_code=501, detail="Vocabulary feature is not implemented yet. See archived/vocab_design.md for future plans.")
+
+
+@app.get("/vocab", summary="Get vocabulary (not implemented)")
+def get_vocab():
+    """Placeholder for vocabulary retrieval feature (Phase 2)."""
+    raise HTTPException(status_code=501, detail="Vocabulary feature is not implemented yet. See archived/vocab_design.md for future plans.")
