@@ -1,19 +1,28 @@
 import logging
 import os
 import sys
+import json
 from typing import Any, Dict, List, Optional
+from time import time
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from mem0 import Memory
 from mem0.user_profile import UserProfile
+from middleware import RequestLoggingMiddleware, log_request_body, log_response_data
+
+# Load environment variables first
+load_dotenv()
+
+# Get log level from environment variable (default: INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Configure logging with more detailed format for Docker logs
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout)  # Explicitly use stdout for Docker logs
@@ -21,13 +30,11 @@ logging.basicConfig(
 )
 
 # Set specific log levels for mem0 modules
-logging.getLogger("mem0.user_profile").setLevel(logging.INFO)
-logging.getLogger("mem0.memory").setLevel(logging.INFO)
+mem0_log_level = getattr(logging, LOG_LEVEL)
+logging.getLogger("mem0.user_profile").setLevel(mem0_log_level)
+logging.getLogger("mem0.memory").setLevel(mem0_log_level)
 
 logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
 
 # PostgreSQL configuration
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
@@ -100,12 +107,16 @@ MEMORY_INSTANCE = Memory.from_config(DEFAULT_CONFIG)
 USER_PROFILE_INSTANCE = UserProfile(MEMORY_INSTANCE.config)
 
 logger.info("Mem0 Memory and UserProfile instances initialized successfully")
+logger.info(f"Logging level set to: {LOG_LEVEL}")
 
 app = FastAPI(
     title="Mem0 REST APIs",
     description="A REST API for managing and searching memories for your AI Agents and Apps.",
     version="1.0.0",
 )
+
+# Add request logging middleware
+app.add_middleware(RequestLoggingMiddleware, log_level=LOG_LEVEL)
 
 
 class Message(BaseModel):
@@ -306,10 +317,18 @@ def set_profile(profile_create: ProfileCreate):
     # Consider implementing JWT token validation or API key check
 
     try:
+        # Log request details in DEBUG mode
+        request_data = profile_create.model_dump()
+        log_request_body(request_data, "set_profile")
+
         response = USER_PROFILE_INSTANCE.set_profile(
             user_id=profile_create.user_id,
             messages=[m.model_dump() for m in profile_create.messages]
         )
+
+        # Log response details in DEBUG mode
+        log_response_data(response, "set_profile")
+
         return JSONResponse(content=response)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

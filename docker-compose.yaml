@@ -62,6 +62,8 @@ services:
       - MONGODB_DATABASE=mem0
       - HISTORY_DB_PATH=/app/history/history.db
       - EMBEDDING_MODEL_DIMS=1536
+      # Logging配置
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - ./history:/app/history
     depends_on:
