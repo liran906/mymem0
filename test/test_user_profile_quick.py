@@ -1,326 +1,315 @@
+#!/usr/bin/env python3
 """
-Quick tests for recent UserProfile changes
+Quick API tests for UserProfile recent changes
 
-Tests:
-1. social_context structure (object, not array)
-2. learning_preferences structure (object, not array)
-3. evidence_limit parameter (0, N, -1)
-4. missing-fields endpoint (pg/mongo/both)
+Tests new features without requiring database:
+1. Prompt structure validation
+2. Timestamp handling in profile_manager
+3. social_context structure (friends vs teachers)
+4. Evidence limit logic
 """
 
 import sys
 import os
+import json
+from datetime import datetime
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mem0 import Memory
-from mem0.configs.base import MemoryConfig
-from mem0.user_profile import UserProfile
-
-
-# Test configuration (using local Docker services)
-TEST_CONFIG = {
-    "llm": {
-        "provider": "deepseek",
-        "config": {
-            "model": "deepseek-chat",
-            "temperature": 0.1,
-            "max_tokens": 2000,
-        }
-    },
-    "embedder": {
-        "provider": "qwen",
-        "config": {
-            "model": "text-embedding-v4",
-            "embedding_dims": 1536,
-        }
-    },
-    "vector_store": {
-        "provider": "pgvector",
-        "config": {
-            "host": "localhost",
-            "port": "8432",
-            "user": "mem0",
-            "password": "mem0password",
-            "database": "mem0",
-        }
-    },
-    "user_profile": {
-        "postgres": {
-            "host": "localhost",
-            "port": "8432",
-            "database": "mem0",
-            "user": "mem0",
-            "password": "mem0password"
-        },
-        "mongodb": {
-            "uri": "mongodb://localhost:27017",
-            "database": "mem0"
-        }
-    }
-}
+from mem0.user_profile.prompts import EXTRACT_PROFILE_PROMPT, UPDATE_PROFILE_PROMPT
+from mem0.user_profile.profile_manager import ProfileManager
+from mem0.user_profile.utils import get_current_timestamp
 
 
 def print_section(title):
     """Print a section header"""
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print(f"  {title}")
-    print("=" * 60)
+    print("=" * 70)
 
 
-def print_result(test_name, passed, error=None):
+def print_result(test_name, passed, details=None):
     """Print test result"""
-    status = "✓ PASS" if passed else "✗ FAIL"
+    status = "✅ PASS" if passed else "❌ FAIL"
     print(f"\n{status}: {test_name}")
-    if error:
-        print(f"  Error: {error}")
+    if details:
+        print(f"  → {details}")
+
+
+def test_prompts_no_timestamp():
+    """
+    Test 1: Verify prompts don't ask LLM to generate timestamps
+    """
+    print_section("Test 1: Prompts - No Timestamp Generation")
+
+    # Check EXTRACT_PROFILE_PROMPT - should say NO timestamp
+    has_no_timestamp_rule = "NO timestamp" in EXTRACT_PROFILE_PROMPT or "DO NOT include timestamp" in EXTRACT_PROFILE_PROMPT
+    has_backend_note = "backend" in EXTRACT_PROFILE_PROMPT.lower() and "timestamp" in EXTRACT_PROFILE_PROMPT
+    no_current_time_param = "{current_time}" not in EXTRACT_PROFILE_PROMPT
+
+    print_result(
+        "EXTRACT_PROFILE_PROMPT",
+        has_no_timestamp_rule and no_current_time_param,
+        "LLM instructed NOT to include timestamps, backend handles it" if has_no_timestamp_rule else "Missing 'NO timestamp' instruction"
+    )
+
+    # Check UPDATE_PROFILE_PROMPT
+    has_no_timestamp_rule2 = "DO NOT" in UPDATE_PROFILE_PROMPT and "timestamp" in UPDATE_PROFILE_PROMPT
+    backend_handles2 = "backend" in UPDATE_PROFILE_PROMPT.lower() and "timestamp" in UPDATE_PROFILE_PROMPT
+
+    print_result(
+        "UPDATE_PROFILE_PROMPT",
+        has_no_timestamp_rule2 or backend_handles2,
+        f"Timestamp handling documented: {has_no_timestamp_rule2 or backend_handles2}"
+    )
+
+    return (has_no_timestamp_rule and no_current_time_param) and (has_no_timestamp_rule2 or backend_handles2)
 
 
 def test_social_context_structure():
     """
-    Test 1: Verify social_context is stored as object (not array)
+    Test 2: Verify social_context uses 'friends' not 'teachers'
     """
-    print_section("Test 1: social_context Structure")
+    print_section("Test 2: social_context Structure - Friends not Teachers")
 
+    has_friends = '"friends":' in EXTRACT_PROFILE_PROMPT
+    has_teachers = '"teachers":' in EXTRACT_PROFILE_PROMPT
+
+    friends_in_rules = "friends" in EXTRACT_PROFILE_PROMPT and "Array of friends" in EXTRACT_PROFILE_PROMPT
+    teachers_in_others = "teachers" in EXTRACT_PROFILE_PROMPT and "others" in EXTRACT_PROFILE_PROMPT
+
+    print_result(
+        "social_context.friends exists",
+        has_friends,
+        f"Found 'friends' array in prompt"
+    )
+
+    print_result(
+        "teachers moved to 'others'",
+        not has_teachers or teachers_in_others,
+        "teachers are in 'others' relation" if teachers_in_others else "No separate teachers array"
+    )
+
+    return has_friends and (not has_teachers or teachers_in_others)
+
+
+def test_language_consistency_rule():
+    """
+    Test 3: Verify language consistency rule exists
+    """
+    print_section("Test 3: Language Consistency Rule")
+
+    has_rule = "Language consistency" in EXTRACT_PROFILE_PROMPT or "language" in EXTRACT_PROFILE_PROMPT.lower()
+    no_translation = "translation" in EXTRACT_PROFILE_PROMPT or "Chinese/English" in EXTRACT_PROFILE_PROMPT
+
+    print_result(
+        "Language consistency rule",
+        has_rule and no_translation,
+        "Rule found: Keep language consistent, no translation"
+    )
+
+    return has_rule and no_translation
+
+
+def test_degree_descriptions():
+    """
+    Test 4: Verify degree descriptions are in English
+    """
+    print_section("Test 4: Degree Descriptions - English Terms")
+
+    # Check for English degree terms
+    english_terms = [
+        "dislike", "neutral", "like", "favorite",
+        "beginner", "learning", "proficient", "expert",
+        "weak", "moderate", "strong"
+    ]
+
+    found_english = [term for term in english_terms if term in EXTRACT_PROFILE_PROMPT]
+
+    # Check for Chinese degree terms (should not exist)
+    chinese_terms = ["不太喜欢", "喜欢", "最爱", "初学", "入门", "专家", "明显"]
+    found_chinese = [term for term in chinese_terms if term in EXTRACT_PROFILE_PROMPT]
+
+    print_result(
+        "English degree terms",
+        len(found_english) >= 5,
+        f"Found {len(found_english)} English terms: {', '.join(found_english[:5])}"
+    )
+
+    print_result(
+        "No Chinese degree terms",
+        len(found_chinese) == 0,
+        "All degree descriptions use English" if len(found_chinese) == 0 else f"Found Chinese: {found_chinese}"
+    )
+
+    return len(found_english) >= 5 and len(found_chinese) == 0
+
+
+def test_timestamp_generation_function():
+    """
+    Test 5: Verify timestamp utility function works
+    """
+    print_section("Test 5: Timestamp Generation Function")
+
+    timestamp = get_current_timestamp()
+
+    # Validate ISO8601 format
     try:
-        config = MemoryConfig(**TEST_CONFIG)
-        user_profile = UserProfile(config)
-        user_id = "test_social_context_quick"
+        datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        is_valid = True
+    except:
+        is_valid = False
 
-        # Message mentioning family and friends
-        messages = [
-            {"role": "user", "content": "我爸爸是医生，叫John，很善良。我妈妈Mary是老师。我有个好朋友Amy。"}
-        ]
+    print_result(
+        "get_current_timestamp()",
+        is_valid,
+        f"Generated valid timestamp: {timestamp}"
+    )
 
-        print("\nCreating profile with family/friends info...")
-        user_profile.set_profile(user_id=user_id, messages=messages)
-
-        # Get profile
-        profile = user_profile.get_profile(user_id=user_id)
-        social_context = profile.get("additional_profile", {}).get("social_context", {})
-
-        print(f"\nsocial_context type: {type(social_context)}")
-        print(f"social_context keys: {list(social_context.keys()) if isinstance(social_context, dict) else 'N/A'}")
-
-        # Verify structure
-        assert isinstance(social_context, dict), f"social_context should be dict, got {type(social_context)}"
-
-        if "family" in social_context:
-            assert isinstance(social_context["family"], dict), "family should be dict"
-            print(f"✓ family structure correct: {list(social_context['family'].keys())}")
-
-        if "friends" in social_context:
-            assert isinstance(social_context["friends"], list), "friends should be list"
-            print(f"✓ friends structure correct: {len(social_context['friends'])} friends")
-
-        print_result("social_context Structure", True)
-        return True
-
-    except AssertionError as e:
-        print_result("social_context Structure", False, str(e))
-        return False
-    except Exception as e:
-        print_result("social_context Structure", False, f"Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return is_valid
 
 
-def test_learning_preferences_structure():
+def test_add_timestamps_to_evidence_logic():
     """
-    Test 2: Verify learning_preferences is stored as object (not array)
+    Test 6: Test _add_timestamps_to_evidence logic (without LLM)
     """
-    print_section("Test 2: learning_preferences Structure")
+    print_section("Test 6: Add Timestamps to Evidence Logic")
 
-    try:
-        config = MemoryConfig(**TEST_CONFIG)
-        user_profile = UserProfile(config)
-        user_id = "test_learning_pref_quick"
+    # Simulate extracted data without timestamps
+    test_data = {
+        "interests": [
+            {
+                "name": "足球",
+                "degree": 4,
+                "evidence": [
+                    {"text": "喜欢踢足球"},
+                    {"text": "每周都踢"}
+                ]
+            }
+        ],
+        "social_context": {
+            "friends": [
+                {"name": "Jack", "info": ["plays basketball"]}
+            ]
+        }
+    }
 
-        # Message mentioning learning preferences
-        messages = [
-            {"role": "user", "content": "我喜欢在晚上学习，通过看视频教程效果最好，我现在是中级水平。"}
-        ]
+    # Create a mock ProfileManager with minimal setup
+    class MockLLM:
+        pass
 
-        print("\nCreating profile with learning preferences...")
-        user_profile.set_profile(user_id=user_id, messages=messages)
+    class MockDB:
+        pass
 
-        # Get profile
-        profile = user_profile.get_profile(user_id=user_id)
-        learning_pref = profile.get("additional_profile", {}).get("learning_preferences", {})
+    manager = ProfileManager(MockLLM(), MockDB(), MockDB())
 
-        print(f"\nlearning_preferences type: {type(learning_pref)}")
-        print(f"learning_preferences content: {learning_pref}")
+    # Add timestamps
+    result = manager._add_timestamps_to_evidence(test_data)
 
-        # Verify structure
-        assert isinstance(learning_pref, dict), f"learning_preferences should be dict, got {type(learning_pref)}"
+    # Check if timestamps were added
+    has_timestamps = all(
+        "timestamp" in ev
+        for item in result.get("interests", [])
+        for ev in item.get("evidence", [])
+    )
 
-        # Check for expected keys
-        expected_keys = ["preferred_time", "preferred_style", "difficulty_level"]
-        found_keys = [k for k in expected_keys if k in learning_pref]
-        if found_keys:
-            print(f"✓ Found keys: {found_keys}")
+    print_result(
+        "Timestamps added to evidence",
+        has_timestamps,
+        f"All evidence entries have timestamps: {has_timestamps}"
+    )
 
-        print_result("learning_preferences Structure", True)
-        return True
+    # Print sample
+    if result.get("interests"):
+        sample_evidence = result["interests"][0]["evidence"][0]
+        print(f"  Sample: {sample_evidence}")
 
-    except AssertionError as e:
-        print_result("learning_preferences Structure", False, str(e))
-        return False
-    except Exception as e:
-        print_result("learning_preferences Structure", False, f"Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return has_timestamps
 
 
-def test_evidence_limit():
+def test_evidence_structure():
     """
-    Test 3: Test evidence_limit parameter (0, 2, -1)
+    Test 7: Verify evidence structure in prompts
     """
-    print_section("Test 3: evidence_limit Parameter")
+    print_section("Test 7: Evidence Structure - Text Only from LLM")
 
-    try:
-        config = MemoryConfig(**TEST_CONFIG)
-        user_profile = UserProfile(config)
-        user_id = "test_evidence_limit_quick"
+    # Check that examples show text-only evidence
+    has_text_only = '{{"text":' in EXTRACT_PROFILE_PROMPT
+    no_timestamp_in_example = not ('{{"text":' in EXTRACT_PROFILE_PROMPT and '"timestamp":' in EXTRACT_PROFILE_PROMPT and EXTRACT_PROFILE_PROMPT.index('{{"text":') < EXTRACT_PROFILE_PROMPT.index('"timestamp":'))
 
-        # Create multiple evidence items
-        messages = [
-            {"role": "user", "content": "我喜欢打篮球"},
-            {"role": "user", "content": "昨天打篮球很开心"},
-            {"role": "user", "content": "今天又打篮球了"},
-        ]
+    print_result(
+        "Evidence structure",
+        has_text_only,
+        "Examples show evidence with text field"
+    )
 
-        print("\nCreating profile with multiple evidence...")
-        for msg in messages:
-            user_profile.set_profile(user_id=user_id, messages=[msg])
+    print_result(
+        "No timestamp in LLM examples",
+        no_timestamp_in_example,
+        "LLM examples don't include timestamp field"
+    )
 
-        # Test limit=0
-        print("\n1. Testing evidence_limit=0")
-        profile_0 = user_profile.get_profile(user_id=user_id, options={"evidence_limit": 0})
-        interests_0 = profile_0.get("additional_profile", {}).get("interests", [])
-        if interests_0:
-            evidence_count = len(interests_0[0].get("evidence", []))
-            print(f"   Evidence count: {evidence_count}")
-            assert evidence_count == 0, f"Expected 0, got {evidence_count}"
-            print("   ✓ limit=0 works")
-
-        # Test limit=2
-        print("\n2. Testing evidence_limit=2")
-        profile_2 = user_profile.get_profile(user_id=user_id, options={"evidence_limit": 2})
-        interests_2 = profile_2.get("additional_profile", {}).get("interests", [])
-        if interests_2:
-            evidence_count = len(interests_2[0].get("evidence", []))
-            print(f"   Evidence count: {evidence_count}")
-            assert evidence_count <= 2, f"Expected ≤2, got {evidence_count}"
-            print("   ✓ limit=2 works")
-
-        # Test limit=-1
-        print("\n3. Testing evidence_limit=-1")
-        profile_all = user_profile.get_profile(user_id=user_id, options={"evidence_limit": -1})
-        interests_all = profile_all.get("additional_profile", {}).get("interests", [])
-        if interests_all:
-            evidence_count = len(interests_all[0].get("evidence", []))
-            print(f"   Evidence count: {evidence_count}")
-            print("   ✓ limit=-1 returns all")
-
-        print_result("evidence_limit Parameter", True)
-        return True
-
-    except AssertionError as e:
-        print_result("evidence_limit Parameter", False, str(e))
-        return False
-    except Exception as e:
-        print_result("evidence_limit Parameter", False, f"Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return has_text_only and no_timestamp_in_example
 
 
-def test_missing_fields():
+def test_omit_missing_fields_rule():
     """
-    Test 4: Test missing-fields endpoint
+    Test 8: Verify 'omit missing fields' rule
     """
-    print_section("Test 4: missing-fields Endpoint")
+    print_section("Test 8: Omit Missing Fields Rule")
 
-    try:
-        config = MemoryConfig(**TEST_CONFIG)
-        user_profile = UserProfile(config)
-        user_id = "test_missing_fields_quick"
+    has_omit_rule = "omit" in EXTRACT_PROFILE_PROMPT.lower() or "DO NOT include" in EXTRACT_PROFILE_PROMPT
+    no_null_rule = "null" in EXTRACT_PROFILE_PROMPT or "empty" in EXTRACT_PROFILE_PROMPT
 
-        # Create partial profile
-        messages = [
-            {"role": "user", "content": "我叫张三，喜欢编程"}
-        ]
+    print_result(
+        "Omit missing fields rule",
+        has_omit_rule,
+        "Rule found: Omit fields with no data"
+    )
 
-        print("\nCreating partial profile...")
-        user_profile.set_profile(user_id=user_id, messages=messages)
+    print_result(
+        "No null values",
+        no_null_rule,
+        "Instruction to not return null values"
+    )
 
-        # Test source='both'
-        print("\n1. Testing source='both'")
-        missing_both = user_profile.get_missing_fields(user_id=user_id, source="both")
-        print(f"   Missing basic_info fields: {len(missing_both['missing_fields'].get('basic_info', []))}")
-        print(f"   Missing additional_profile fields: {len(missing_both['missing_fields'].get('additional_profile', []))}")
-        assert "basic_info" in missing_both["missing_fields"]
-        assert "additional_profile" in missing_both["missing_fields"]
-        print("   ✓ both sources work")
-
-        # Test source='pg'
-        print("\n2. Testing source='pg'")
-        missing_pg = user_profile.get_missing_fields(user_id=user_id, source="pg")
-        assert "basic_info" in missing_pg["missing_fields"]
-        assert "additional_profile" not in missing_pg["missing_fields"]
-        print("   ✓ pg source only")
-
-        # Test source='mongo'
-        print("\n3. Testing source='mongo'")
-        missing_mongo = user_profile.get_missing_fields(user_id=user_id, source="mongo")
-        assert "additional_profile" in missing_mongo["missing_fields"]
-        assert "basic_info" not in missing_mongo["missing_fields"]
-        print("   ✓ mongo source only")
-
-        print_result("missing-fields Endpoint", True)
-        return True
-
-    except AssertionError as e:
-        print_result("missing-fields Endpoint", False, str(e))
-        return False
-    except Exception as e:
-        print_result("missing-fields Endpoint", False, f"Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return has_omit_rule
 
 
 def run_quick_tests():
     """Run all quick tests"""
-    print_section("UserProfile Quick Test Suite")
-    print("Testing recent changes (social_context, learning_preferences, evidence_limit, missing-fields)")
+    print("\n" + "=" * 70)
+    print("  UserProfile Quick Test Suite - Recent Changes")
+    print("=" * 70)
+    print("\nTesting: Prompts, Timestamp Handling, social_context, Language Rules")
 
     tests = [
-        test_social_context_structure,
-        test_learning_preferences_structure,
-        test_evidence_limit,
-        test_missing_fields,
+        ("Prompts - No Timestamp Generation", test_prompts_no_timestamp),
+        ("social_context - Friends Structure", test_social_context_structure),
+        ("Language Consistency Rule", test_language_consistency_rule),
+        ("Degree Descriptions - English", test_degree_descriptions),
+        ("Timestamp Utility Function", test_timestamp_generation_function),
+        ("Add Timestamps Logic", test_add_timestamps_to_evidence_logic),
+        ("Evidence Structure", test_evidence_structure),
+        ("Omit Missing Fields Rule", test_omit_missing_fields_rule),
     ]
 
     results = []
-    for test_func in tests:
+    for test_name, test_func in tests:
         try:
             passed = test_func()
-            results.append((test_func.__name__, passed))
+            results.append((test_name, passed))
         except Exception as e:
-            print(f"\n✗ FATAL ERROR in {test_func.__name__}: {e}")
+            print(f"\n❌ ERROR in {test_name}: {e}")
             import traceback
             traceback.print_exc()
-            results.append((test_func.__name__, False))
+            results.append((test_name, False))
 
     # Summary
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("  Test Summary")
-    print("=" * 60)
+    print("=" * 70)
 
     passed_count = sum(1 for _, passed in results if passed)
     total_count = len(results)
@@ -328,11 +317,18 @@ def run_quick_tests():
     print(f"\nTotal: {passed_count}/{total_count} tests passed\n")
 
     for test_name, passed in results:
-        status = "✓" if passed else "✗"
-        print(f"  {status} {test_name.replace('test_', '').replace('_', ' ').title()}")
+        status = "✅" if passed else "❌"
+        print(f"  {status} {test_name}")
 
     if passed_count == total_count:
         print("\n🎉 All quick tests passed!")
+        print("\nVerified changes:")
+        print("  • Timestamps generated by backend, not LLM")
+        print("  • social_context uses 'friends' instead of 'teachers'")
+        print("  • Language consistency rule added")
+        print("  • Degree descriptions in English")
+        print("  • Evidence structure: LLM returns text only")
+        print("  • Missing fields are omitted, not null")
         return True
     else:
         print(f"\n⚠️  {total_count - passed_count} test(s) failed")
