@@ -117,7 +117,9 @@ Key endpoints:
 
 **User Profile endpoints (NEW):**
 - `POST /profile`: Update user profile from messages
-- `GET /profile?user_id={id}&type={basic|additional|all}`: Get user profile
+- `GET /profile?user_id={id}&fields={fields}&evidence_limit={n}`: Get user profile (evidence_limit: default 5, -1 for all)
+- `GET /profile/missing-fields?user_id={id}&source={pg|mongo|both}`: Get missing profile fields
+- `DELETE /profile?user_id={id}`: Delete user profile
 - `POST /vocab`: (Reserved, returns 501 Not Implemented)
 - `GET /vocab`: (Reserved, returns 501 Not Implemented)
 

@@ -731,17 +731,15 @@ Content-Type: application/json
 **请求示例**：
 
 ```http
-# 获取全部
-GET /profile?user_id=u123&type=all
+# 获取全部（evidence默认返回最新5条）
+GET /profile?user_id=u123
 
-# 只获取基本信息
-GET /profile?user_id=u123&type=basic
+# 指定fields过滤additional_profile字段
+GET /profile?user_id=u123&fields=interests,skills
 
-# 只获取兴趣
-GET /profile?user_id=u123&type=additional&field=interests
-
-# 获取嵌套字段（点语法）
-GET /profile?user_id=u123&type=additional&field=social_context.father.name
+# 限制evidence数量（-1表示全部）
+GET /profile?user_id=u123&evidence_limit=10
+GET /profile?user_id=u123&evidence_limit=-1  # 返回所有evidence
 ```
 
 **参数说明**：
@@ -749,8 +747,8 @@ GET /profile?user_id=u123&type=additional&field=social_context.father.name
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | user_id | string | 是 | 用户ID |
-| type | string | 否 | "basic" / "additional" / "all"（默认 "all"） |
-| field | string | 否 | 字段名（支持点语法），仅在 type="additional" 时有效 |
+| fields | string | 否 | 逗号分隔的字段名，如 "interests,skills"，仅返回指定字段 |
+| evidence_limit | int | 否 | 每个条目返回的evidence数量，默认5，-1表示全部 |
 
 **响应示例**：
 
@@ -795,7 +793,83 @@ GET /profile?user_id=u123&type=additional&field=social_context.father.name
 
 ---
 
-### 6.3 POST /vocab 和 GET /vocab（预留）
+### 6.3 GET /profile/missing-fields（获取缺失字段）
+
+**功能**：查询用户画像中缺失的字段，用于告知主服务在后续对话中主动询问这些信息。
+
+**请求示例**:
+
+```http
+# 查询所有缺失字段
+GET /profile/missing-fields?user_id=u123
+
+# 只查询PostgreSQL basic_info缺失字段
+GET /profile/missing-fields?user_id=u123&source=pg
+
+# 只查询MongoDB additional_profile缺失字段
+GET /profile/missing-fields?user_id=u123&source=mongo
+```
+
+**参数说明**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| user_id | string | 是 | 用户ID |
+| source | string | 否 | "pg" / "mongo" / "both"（默认 "both"） |
+
+**完整字段定义**：
+
+- **PostgreSQL (basic_info)**: name, nickname, english_name, birthday, gender, nationality, hometown, current_city, timezone, language
+- **MongoDB (additional_profile)**: interests, skills, personality, social_context, learning_preferences
+
+**响应示例**：
+
+```json
+{
+    "user_id": "u123",
+    "missing_fields": {
+        "basic_info": ["hometown", "gender", "birthday", "timezone"],
+        "additional_profile": ["personality", "learning_preferences"]
+    }
+}
+```
+
+**应用场景**：
+主服务可以根据返回的缺失字段，在系统prompt中加入类似提示：
+```
+当前用户画像缺失以下信息：hometown, gender, birthday
+请在自然对话中适时询问这些信息。
+```
+
+---
+
+### 6.4 DELETE /profile（删除用户画像）
+
+**请求示例**:
+
+```http
+DELETE /profile?user_id=u123
+```
+
+**参数说明**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| user_id | string | 是 | 用户ID |
+
+**响应示例**：
+
+```json
+{
+    "success": true,
+    "basic_info_deleted": true,
+    "additional_profile_deleted": true
+}
+```
+
+---
+
+### 6.5 POST /vocab 和 GET /vocab（预留）
 
 **实现**：返回 501 Not Implemented
 

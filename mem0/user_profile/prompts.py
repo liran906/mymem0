@@ -61,6 +61,20 @@ Return a JSON object with this structure:
                 "evidence": [
                     {{"text": "女儿今年上幼儿园了", "timestamp": "2025-10-04T08:00:00"}}
                 ]
+            }},
+            {{
+                "name": "teachers",
+                "details": [{{"name": "Amy", "subject": "math", "info": ["kind and loving", "plays football"]}}],
+                "evidence": [
+                    {{"text": "数学老师Amy对我很好", "timestamp": "2025-10-04T09:00:00"}}
+                ]
+            }},
+            {{
+                "name": "others",
+                "details": [{{"name": "Jack", "relation": "friend", "info": ["plays basketball"]}}],
+                "evidence": [
+                    {{"text": "Jack是我的好朋友，他喜欢打篮球", "timestamp": "2025-10-04T10:00:00"}}
+                ]
             }}
         ],
         "learning_preferences": [
