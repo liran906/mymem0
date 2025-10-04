@@ -51,6 +51,11 @@ class UserProfile:
 
         Args:
             config: MemoryConfig instance with user_profile settings
+
+        Architecture Note:
+            - basic_info (PostgreSQL): Conversation-extracted reference data, NON-authoritative
+            - additional_profile (MongoDB): Core value - interests, skills, personality
+            - See discuss/19-manual_data_decision.md for architectural decisions
         """
         self.config = config
 
@@ -77,6 +82,7 @@ class UserProfile:
         self,
         user_id: str,
         messages: List[Dict[str, str]],
+        manual_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Extract and update user profile from conversation messages
@@ -96,6 +102,8 @@ class UserProfile:
                     {"role": "assistant", "content": "你好李明！"},
                     {"role": "user", "content": "我喜欢踢足球"}
                 ]
+            manual_data: Optional dict of manually provided basic_info that takes priority
+                Example: {"name": "李明", "birthday": "1990-01-01"}
 
         Returns:
             Result dict with status and details:

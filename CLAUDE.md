@@ -29,8 +29,8 @@ This is a customized Mem0 service that provides memory management capabilities f
 
 4. **Database Stack**:
    - PostgreSQL with pgvector extension for vector storage
-   - PostgreSQL schema `user_profile` for user basic info (new)
-   - MongoDB for user extended profile (new)
+   - PostgreSQL schema `user_profile` for user basic info **(conversation-extracted, non-authoritative reference data)** (new)
+   - MongoDB for user extended profile **(core: interests, skills, personality)** (new)
    - SQLite for history tracking (stored in `./history/history.db`)
 
 ### Configuration
@@ -165,11 +165,13 @@ Current production setup uses PostgreSQL with pgvector.
 
 ### Overview
 Automatically extracts and manages user profiles from conversations, including:
-- Basic info (name, birthday, location, etc.) → PostgreSQL
-- Extended info (interests, skills, personality, social context) → MongoDB
+- **Basic info** (name, birthday, location, etc.) → PostgreSQL **(Non-authoritative, conversation-extracted reference data only)**
+- **Extended info** (interests, skills, personality, social context) → MongoDB **(Core value: deep user characteristics)**
 
 ### Core Design
 **Evidence-Based**: Every profile update is backed by specific evidence from conversations, stored with timestamps for intelligent conflict resolution.
+
+**Important**: The `basic_info` field stores conversation-extracted basic information for reference purposes only. It is NOT authoritative data. The main service maintains authoritative user information. See `discuss/19-manual_data_decision.md` for architectural decisions.
 
 ### Key Features
 - **Two-stage LLM Pipeline**: Extract info → Decide updates (ADD/UPDATE/DELETE)

@@ -28,14 +28,19 @@
 ### 1.1 功能描述
 
 开发一个**用户画像系统**，从对话中自动提取和管理用户的：
-- 基本信息（姓名、生日、地理位置等）
-- 兴趣爱好
-- 技能
-- 性格特征
-- 社交关系
-- 学习偏好
+- **基本信息**（姓名、生日、地理位置等）→ **非权威数据，仅供参考**
+- **兴趣爱好** → 核心价值
+- **技能** → 核心价值
+- **性格特征** → 核心价值
+- **社交关系** → 核心价值
+- **学习偏好** → 核心价值
 
 为 AI 对话提供丰富的用户上下文。
+
+**重要架构说明**：
+- `basic_info`：从对话中提取的基本信息，**非权威数据**，仅用于参考、对比、个性化
+- `additional_profile`：兴趣、技能、性格等深度特征，**核心价值所在**
+- 主服务维护权威的用户基本信息，详见 `discuss/19-manual_data_decision.md`
 
 ### 1.2 核心设计理念
 
@@ -139,7 +144,13 @@ server/
 
 ### 3.1 PostgreSQL: user_profile 表
 
-**用途**：存储用户基本信息（结构化、稳定）
+**用途**：存储从对话中提取的基本信息（**非权威数据，仅供参考**）
+
+**重要说明**：
+- 此表存储的是从对话中LLM提取的基本信息
+- **非权威数据源**，仅用于参考、对比、发现信息变更
+- 主服务维护权威的用户基本信息
+- 详见架构决策文档：`discuss/19-manual_data_decision.md`
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS user_profile;
@@ -149,7 +160,7 @@ CREATE TABLE user_profile.user_profile (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    -- 基本信息
+    -- 基本信息（从对话中提取，非权威）
     name VARCHAR(100),
     nickname VARCHAR(100),
     english_name VARCHAR(100),
