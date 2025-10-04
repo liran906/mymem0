@@ -550,6 +550,387 @@ def test_concurrent_updates():
         return False
 
 
+def test_realistic_conversation_scenario():
+    """
+    Test Case 9: Realistic Multi-Turn Conversation (★★★★☆)
+
+    Scenario: 12-turn realistic conversation covering multiple aspects
+    Expected: Complete user profile built progressively
+    Output: Detailed database state for manual verification
+    """
+    print_section("Test 9: Realistic Conversation Scenario")
+
+    try:
+        config = MemoryConfig(**TEST_CONFIG)
+        user_profile = UserProfile(config)
+        user_id = "test_realistic_001"
+
+        # 12-turn realistic conversation
+        conversation_rounds = [
+            # Round 1: Initial introduction
+            {
+                "messages": [
+                    {"role": "user", "content": "你好，我叫李明，今年32岁"},
+                    {"role": "assistant", "content": "你好李明！很高兴认识你。"}
+                ],
+                "description": "Round 1: Basic introduction"
+            },
+            # Round 2: Location and work
+            {
+                "messages": [
+                    {"role": "user", "content": "我住在杭州，在一家互联网公司做产品经理"},
+                    {"role": "assistant", "content": "杭州是个不错的城市，产品经理工作怎么样？"}
+                ],
+                "description": "Round 2: Location and career"
+            },
+            # Round 3: Interests - sports
+            {
+                "messages": [
+                    {"role": "user", "content": "工作压力挺大的，不过我喜欢跑步来放松，每周至少跑3次"},
+                    {"role": "assistant", "content": "跑步是很好的减压方式！"}
+                ],
+                "description": "Round 3: Interest in running"
+            },
+            # Round 4: Technical skills
+            {
+                "messages": [
+                    {"role": "user", "content": "我会用Python做一些数据分析，能写SQL查询，还学过一点机器学习"},
+                    {"role": "assistant", "content": "技术背景对产品经理很有帮助！"}
+                ],
+                "description": "Round 4: Technical skills"
+            },
+            # Round 5: More interests
+            {
+                "messages": [
+                    {"role": "user", "content": "对了，我还很喜欢摄影，周末经常带着相机出去拍照"},
+                    {"role": "assistant", "content": "摄影和跑步都是很好的爱好！"}
+                ],
+                "description": "Round 5: Photography interest"
+            },
+            # Round 6: Personality traits
+            {
+                "messages": [
+                    {"role": "user", "content": "我这人比较好奇，喜欢尝试新事物，朋友都说我很外向"},
+                    {"role": "assistant", "content": "这样的性格很适合做产品！"}
+                ],
+                "description": "Round 6: Personality traits"
+            },
+            # Round 7: Family background
+            {
+                "messages": [
+                    {"role": "user", "content": "我家在南京，父母都是老师，我是独生子"},
+                    {"role": "assistant", "content": "教师家庭，家教一定很好。"}
+                ],
+                "description": "Round 7: Family background"
+            },
+            # Round 8: Advanced skill
+            {
+                "messages": [
+                    {"role": "user", "content": "我最近在学Figma做原型设计，感觉产品经理应该会这个"},
+                    {"role": "assistant", "content": "是的，原型设计很重要！"}
+                ],
+                "description": "Round 8: New skill - Figma"
+            },
+            # Round 9: Interest deepening
+            {
+                "messages": [
+                    {"role": "user", "content": "跑步我已经坚持3年了，去年还跑了个半马，成绩还不错"},
+                    {"role": "assistant", "content": "太厉害了！半马很考验毅力。"}
+                ],
+                "description": "Round 9: Running expertise deepening"
+            },
+            # Round 10: Learning preferences
+            {
+                "messages": [
+                    {"role": "user", "content": "我学东西比较喜欢看视频教程，边看边实践，这样学得快"},
+                    {"role": "assistant", "content": "实践出真知！"}
+                ],
+                "description": "Round 10: Learning preferences"
+            },
+            # Round 11: Skill update
+            {
+                "messages": [
+                    {"role": "user", "content": "Python现在用得很熟练了，公司的数据分析都是我做的"},
+                    {"role": "assistant", "content": "进步很快啊！"}
+                ],
+                "description": "Round 11: Python skill upgrade"
+            },
+            # Round 12: New interest
+            {
+                "messages": [
+                    {"role": "user", "content": "最近开始学吉他，虽然才学了一个月，但挺有意思的"},
+                    {"role": "assistant", "content": "音乐也能陶冶情操！"}
+                ],
+                "description": "Round 12: New interest - guitar"
+            },
+        ]
+
+        print("\n" + "="*70)
+        print(" CONVERSATION SIMULATION (12 rounds)")
+        print("="*70)
+
+        # Execute conversation rounds
+        for i, round_data in enumerate(conversation_rounds, 1):
+            print(f"\n[{i}/12] {round_data['description']}")
+            print(f"  User: {round_data['messages'][0]['content']}")
+
+            result = user_profile.set_profile(
+                user_id=user_id,
+                messages=round_data['messages']
+            )
+
+            if result.get('success'):
+                ops = result.get('operations_performed', {})
+                print(f"  ✓ Operations: +{ops.get('added', 0)} ~{ops.get('updated', 0)} -{ops.get('deleted', 0)}")
+            else:
+                print(f"  ✗ Error: {result.get('error')}")
+
+            time.sleep(0.3)  # Small delay between rounds
+
+        # Retrieve final profile
+        print("\n" + "="*70)
+        print(" DATABASE STATE - FINAL PROFILE")
+        print("="*70)
+
+        profile = user_profile.get_profile(user_id=user_id)
+
+        # Print Basic Info
+        print("\n📋 BASIC INFO (PostgreSQL - Conversation-extracted reference data):")
+        print("-" * 70)
+        basic_info = profile.get('basic_info', {})
+        if basic_info:
+            for key, value in sorted(basic_info.items()):
+                if value and key not in ['user_id', 'created_at', 'updated_at']:
+                    print(f"  • {key}: {value}")
+        else:
+            print("  (No basic info extracted)")
+
+        # Print Additional Profile
+        additional = profile.get('additional_profile', {})
+
+        # Interests
+        print("\n❤️  INTERESTS:")
+        print("-" * 70)
+        interests = additional.get('interests', [])
+        if interests:
+            for item in interests:
+                evidence_count = len(item.get('evidence', []))
+                print(f"  • {item.get('name')} (degree: {item.get('degree')}/5, evidence: {evidence_count})")
+                for ev in item.get('evidence', [])[:2]:  # Show first 2 evidence
+                    print(f"    - \"{ev.get('text')}\" [{ev.get('timestamp', '')[:10]}]")
+        else:
+            print("  (None)")
+
+        # Skills
+        print("\n💡 SKILLS:")
+        print("-" * 70)
+        skills = additional.get('skills', [])
+        if skills:
+            for item in skills:
+                evidence_count = len(item.get('evidence', []))
+                print(f"  • {item.get('name')} (degree: {item.get('degree')}/5, evidence: {evidence_count})")
+                for ev in item.get('evidence', [])[:2]:
+                    print(f"    - \"{ev.get('text')}\" [{ev.get('timestamp', '')[:10]}]")
+        else:
+            print("  (None)")
+
+        # Personality
+        print("\n🎭 PERSONALITY:")
+        print("-" * 70)
+        personality = additional.get('personality', [])
+        if personality:
+            for item in personality:
+                evidence_count = len(item.get('evidence', []))
+                print(f"  • {item.get('name')} (degree: {item.get('degree')}/5, evidence: {evidence_count})")
+                for ev in item.get('evidence', [])[:2]:
+                    print(f"    - \"{ev.get('text')}\" [{ev.get('timestamp', '')[:10]}]")
+        else:
+            print("  (None)")
+
+        # Social Context
+        print("\n👨‍👩‍👦 SOCIAL CONTEXT:")
+        print("-" * 70)
+        social = additional.get('social_context', [])
+        if social:
+            for item in social:
+                print(f"  • {item.get('name')}: {item.get('details', 'N/A')}")
+                evidence_count = len(item.get('evidence', []))
+                if evidence_count > 0:
+                    print(f"    Evidence: {evidence_count} entries")
+        else:
+            print("  (None)")
+
+        # Learning Preferences
+        print("\n📚 LEARNING PREFERENCES:")
+        print("-" * 70)
+        learning = additional.get('learning_preferences', [])
+        if learning:
+            for item in learning:
+                print(f"  • {item.get('name')}: {item.get('details', 'N/A')}")
+        else:
+            print("  (None)")
+
+        # Statistics
+        print("\n" + "="*70)
+        print(" STATISTICS")
+        print("="*70)
+        print(f"  Total Interests: {len(interests)}")
+        print(f"  Total Skills: {len(skills)}")
+        print(f"  Total Personality Traits: {len(personality)}")
+        print(f"  Total Social Context Items: {len(social)}")
+        print(f"  Total Learning Preferences: {len(learning)}")
+
+        total_evidence = sum(len(item.get('evidence', [])) for item in interests + skills + personality)
+        print(f"  Total Evidence Entries: {total_evidence}")
+
+        # Validation
+        print("\n" + "="*70)
+        print(" VALIDATION")
+        print("="*70)
+
+        checks = {
+            "Basic info extracted": len(basic_info) > 0,
+            "At least 3 interests": len(interests) >= 3,
+            "At least 3 skills": len(skills) >= 3,
+            "At least 2 personality traits": len(personality) >= 2,
+            "Evidence accumulated": total_evidence >= 10,
+        }
+
+        for check, passed in checks.items():
+            status = "✓" if passed else "✗"
+            print(f"  {status} {check}")
+
+        all_passed = all(checks.values())
+        print_result("Realistic Conversation Scenario", all_passed,
+                    f"Profile completeness: {sum(checks.values())}/{len(checks)} checks passed")
+
+        return all_passed
+
+    except Exception as e:
+        print_result("Realistic Conversation Scenario", False, f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_long_rich_prompt():
+    """
+    Test Case 10: Long Rich Prompt (★★★☆☆)
+
+    Scenario: Single user message with rich, dense information
+    Expected: All information points extracted correctly
+    """
+    print_section("Test 10: Long Rich Prompt")
+
+    try:
+        config = MemoryConfig(**TEST_CONFIG)
+        user_profile = UserProfile(config)
+        user_id = "test_long_prompt_001"
+
+        # Long, information-dense prompt
+        long_prompt = """
+        你好！我叫赵刚，今年35岁，来自成都，现在在深圳工作，是一名资深的全栈工程师。
+
+        我的技术栈很广：精通Python、JavaScript和Go语言，熟悉React和Vue前端框架，
+        会用Docker和Kubernetes做容器化部署，还了解一些DevOps的知识。数据库方面，
+        MySQL和PostgreSQL都很熟练，MongoDB也会用。
+
+        工作之余，我有很多爱好。我特别喜欢爬山，每个月都会去附近的山爬一次，
+        已经爬过深圳的梧桐山、七娘山好多次了。我也喜欢看科幻小说，刘慈欣的作品都读过，
+        最近在看《三体》英文版练英语。摄影也是我的爱好之一，用的是Sony A7M3，
+        主要拍风景和人文。音乐方面，我会弹吉他，学了5年了，现在能自己编曲。
+
+        性格上，我比较内向但很专注，喜欢深入研究技术问题，有点完美主义。
+        朋友说我很靠谱，做事认真负责。我也挺好学的，总想学新东西，最近在学Rust语言。
+
+        家庭方面，我已婚，妻子是设计师，我们有一个3岁的女儿。父母还在成都，
+        都退休了，身体挺好的。我是独生子，所以工作之余经常回成都看望父母。
+
+        学习方法上，我比较喜欢通过实践学习，边做项目边学。看技术文档和视频教程都可以，
+        但最重要的是要动手实践。我习惯在晚上学习，效率比较高。
+        """
+
+        print("\nProcessing long prompt with dense information...")
+        print(f"Prompt length: {len(long_prompt)} characters")
+
+        result = user_profile.set_profile(
+            user_id=user_id,
+            messages=[{"role": "user", "content": long_prompt}]
+        )
+
+        print(f"\nExtraction result:")
+        if result.get('success'):
+            ops = result.get('operations_performed', {})
+            print(f"  ✓ Operations: +{ops.get('added', 0)} ~{ops.get('updated', 0)} -{ops.get('deleted', 0)}")
+        else:
+            print(f"  ✗ Error: {result.get('error')}")
+
+        # Retrieve and analyze profile
+        profile = user_profile.get_profile(user_id=user_id)
+
+        basic_info = profile.get('basic_info', {})
+        additional = profile.get('additional_profile', {})
+
+        interests = additional.get('interests', [])
+        skills = additional.get('skills', [])
+        personality = additional.get('personality', [])
+        social = additional.get('social_context', [])
+        learning = additional.get('learning_preferences', [])
+
+        # Print extracted info summary
+        print("\n📊 EXTRACTION SUMMARY:")
+        print("-" * 70)
+        print(f"  Basic Info Fields: {len([k for k, v in basic_info.items() if v and k not in ['user_id', 'created_at', 'updated_at']])}")
+        print(f"  Interests: {len(interests)}")
+        if interests:
+            for item in interests:
+                print(f"    - {item.get('name')} (degree: {item.get('degree')})")
+
+        print(f"  Skills: {len(skills)}")
+        if skills:
+            for item in skills[:5]:  # Show first 5
+                print(f"    - {item.get('name')} (degree: {item.get('degree')})")
+            if len(skills) > 5:
+                print(f"    ... and {len(skills) - 5} more")
+
+        print(f"  Personality Traits: {len(personality)}")
+        if personality:
+            for item in personality:
+                print(f"    - {item.get('name')} (degree: {item.get('degree')})")
+
+        print(f"  Social Context: {len(social)}")
+        print(f"  Learning Preferences: {len(learning)}")
+
+        # Validation criteria
+        print("\n✅ VALIDATION:")
+        print("-" * 70)
+
+        checks = {
+            "Name extracted (赵刚)": basic_info.get('name') == '赵刚',
+            "Age/City extracted": basic_info.get('current_city') or basic_info.get('hometown'),
+            "At least 3 interests": len(interests) >= 3,
+            "At least 5 skills": len(skills) >= 5,  # Should extract many technical skills
+            "Personality traits": len(personality) >= 2,
+            "Social context (family)": len(social) >= 1,
+        }
+
+        for check, passed in checks.items():
+            status = "✓" if passed else "✗"
+            print(f"  {status} {check}")
+
+        all_passed = all(checks.values())
+        print_result("Long Rich Prompt", all_passed,
+                    f"Information extraction: {sum(checks.values())}/{len(checks)} checks passed")
+
+        return all_passed
+
+    except Exception as e:
+        print_result("Long Rich Prompt", False, f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def run_all_tests():
     """Run all advanced test cases"""
     print_section("UserProfile Advanced Test Suite")
@@ -565,6 +946,8 @@ def run_all_tests():
         test_personality_inference,           # ★★★☆☆
         test_empty_and_null_handling,         # ★★☆☆☆
         test_concurrent_updates,              # ★★☆☆☆
+        test_long_rich_prompt,                # ★★★☆☆
+        test_realistic_conversation_scenario, # ★★★★☆
     ]
 
     results = []

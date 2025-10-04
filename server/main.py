@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -10,7 +11,20 @@ from pydantic import BaseModel, Field
 from mem0 import Memory
 from mem0.user_profile import UserProfile
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# Configure logging with more detailed format for Docker logs
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)  # Explicitly use stdout for Docker logs
+    ]
+)
+
+# Set specific log levels for mem0 modules
+logging.getLogger("mem0.user_profile").setLevel(logging.INFO)
+logging.getLogger("mem0.memory").setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -84,6 +98,8 @@ DEFAULT_CONFIG = {
 
 MEMORY_INSTANCE = Memory.from_config(DEFAULT_CONFIG)
 USER_PROFILE_INSTANCE = UserProfile(MEMORY_INSTANCE.config)
+
+logger.info("Mem0 Memory and UserProfile instances initialized successfully")
 
 app = FastAPI(
     title="Mem0 REST APIs",
