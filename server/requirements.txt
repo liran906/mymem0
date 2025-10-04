@@ -6,3 +6,4 @@ python-dotenv==1.0.1
 qdrant-client>=1.9.1
 langchain-neo4j
 rank_bm25
+pymongo>=4.0.0
