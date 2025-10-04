@@ -931,6 +931,147 @@ def test_long_rich_prompt():
         return False
 
 
+def test_evidence_limit_parameter():
+    """
+    Test Case 11: evidence_limit Parameter (★★☆☆☆)
+
+    Scenario: Test evidence_limit parameter with different values
+    Expected: 0 removes evidence, N limits to N items, -1 returns all
+    """
+    print_section("Test 11: evidence_limit Parameter")
+
+    try:
+        config = MemoryConfig(**TEST_CONFIG)
+        user_profile = UserProfile(config)
+        user_id = "test_evidence_limit_001"
+
+        # Create a user with multiple evidence items
+        messages = [
+            {"role": "user", "content": "我喜欢打篮球"},
+            {"role": "user", "content": "昨天又打了篮球，很开心"},
+            {"role": "user", "content": "今天继续打篮球"},
+            {"role": "user", "content": "周末篮球赛赢了"},
+            {"role": "user", "content": "篮球是我最爱的运动"},
+        ]
+
+        for msg in messages:
+            user_profile.set_profile(user_id=user_id, messages=[msg])
+
+        print("\n1. Testing evidence_limit=0 (should return empty evidence arrays)")
+        profile_0 = user_profile.get_profile(user_id=user_id, options={"evidence_limit": 0})
+        interests_0 = profile_0.get("additional_profile", {}).get("interests", [])
+        if interests_0:
+            evidence_count_0 = len(interests_0[0].get("evidence", []))
+            print(f"   Evidence count with limit=0: {evidence_count_0}")
+            assert evidence_count_0 == 0, f"Expected 0 evidence, got {evidence_count_0}"
+            print("   ✓ evidence_limit=0 works correctly")
+
+        print("\n2. Testing evidence_limit=2 (should return latest 2 items)")
+        profile_2 = user_profile.get_profile(user_id=user_id, options={"evidence_limit": 2})
+        interests_2 = profile_2.get("additional_profile", {}).get("interests", [])
+        if interests_2:
+            evidence_count_2 = len(interests_2[0].get("evidence", []))
+            print(f"   Evidence count with limit=2: {evidence_count_2}")
+            assert evidence_count_2 <= 2, f"Expected ≤2 evidence, got {evidence_count_2}"
+            print("   ✓ evidence_limit=2 works correctly")
+
+        print("\n3. Testing evidence_limit=-1 (should return all items)")
+        profile_all = user_profile.get_profile(user_id=user_id, options={"evidence_limit": -1})
+        interests_all = profile_all.get("additional_profile", {}).get("interests", [])
+        if interests_all:
+            evidence_count_all = len(interests_all[0].get("evidence", []))
+            print(f"   Evidence count with limit=-1: {evidence_count_all}")
+            assert evidence_count_all >= evidence_count_2, "All evidence should be >= limited evidence"
+            print("   ✓ evidence_limit=-1 works correctly")
+
+        print("\n4. Testing default (should use default limit of 5)")
+        profile_default = user_profile.get_profile(user_id=user_id)
+        interests_default = profile_default.get("additional_profile", {}).get("interests", [])
+        if interests_default:
+            evidence_count_default = len(interests_default[0].get("evidence", []))
+            print(f"   Evidence count with default: {evidence_count_default}")
+            print("   ✓ Default evidence_limit works")
+
+        print_result("evidence_limit Parameter Test", True)
+        return True
+
+    except AssertionError as e:
+        print(f"\n✗ Assertion failed: {e}")
+        print_result("evidence_limit Parameter Test", False, str(e))
+        return False
+    except Exception as e:
+        print_result("evidence_limit Parameter Test", False, f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_missing_fields_endpoint():
+    """
+    Test Case 12: Missing Fields Endpoint (★★☆☆☆)
+
+    Scenario: Test /profile/missing-fields endpoint
+    Expected: Returns correct missing fields for pg/mongo/both sources
+    """
+    print_section("Test 12: Missing Fields Endpoint")
+
+    try:
+        config = MemoryConfig(**TEST_CONFIG)
+        user_profile = UserProfile(config)
+        user_id = "test_missing_fields_001"
+
+        # Create a user with partial information
+        user_profile.set_profile(
+            user_id=user_id,
+            messages=[
+                {"role": "user", "content": "我叫张三，喜欢编程"}
+            ]
+        )
+
+        print("\n1. Testing source='both' (default)")
+        missing_both = user_profile.get_missing_fields(user_id=user_id, source="both")
+        print(f"   Missing fields (both): {missing_both}")
+        assert "missing_fields" in missing_both
+        assert "basic_info" in missing_both["missing_fields"]
+        assert "additional_profile" in missing_both["missing_fields"]
+        print("   ✓ Both sources returned")
+
+        print("\n2. Testing source='pg' (PostgreSQL only)")
+        missing_pg = user_profile.get_missing_fields(user_id=user_id, source="pg")
+        print(f"   Missing fields (pg): {missing_pg}")
+        assert "basic_info" in missing_pg["missing_fields"]
+        assert "additional_profile" not in missing_pg["missing_fields"]
+        print("   ✓ PostgreSQL source only")
+
+        print("\n3. Testing source='mongo' (MongoDB only)")
+        missing_mongo = user_profile.get_missing_fields(user_id=user_id, source="mongo")
+        print(f"   Missing fields (mongo): {missing_mongo}")
+        assert "additional_profile" in missing_mongo["missing_fields"]
+        assert "basic_info" not in missing_mongo["missing_fields"]
+        print("   ✓ MongoDB source only")
+
+        print("\n4. Testing non-existent user")
+        missing_new = user_profile.get_missing_fields(user_id="nonexistent_user", source="both")
+        print(f"   Missing fields for new user: {len(missing_new['missing_fields']['basic_info'])} basic + {len(missing_new['missing_fields']['additional_profile'])} additional")
+        # New user should have all fields missing
+        assert len(missing_new["missing_fields"]["basic_info"]) > 0
+        assert len(missing_new["missing_fields"]["additional_profile"]) > 0
+        print("   ✓ Non-existent user returns all fields as missing")
+
+        print_result("Missing Fields Endpoint Test", True)
+        return True
+
+    except AssertionError as e:
+        print(f"\n✗ Assertion failed: {e}")
+        print_result("Missing Fields Endpoint Test", False, str(e))
+        return False
+    except Exception as e:
+        print_result("Missing Fields Endpoint Test", False, f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def run_all_tests():
     """Run all advanced test cases"""
     print_section("UserProfile Advanced Test Suite")
@@ -948,6 +1089,8 @@ def run_all_tests():
         test_concurrent_updates,              # ★★☆☆☆
         test_long_rich_prompt,                # ★★★☆☆
         test_realistic_conversation_scenario, # ★★★★☆
+        test_evidence_limit_parameter,        # ★★☆☆☆ NEW
+        test_missing_fields_endpoint,         # ★★☆☆☆ NEW
     ]
 
     results = []
