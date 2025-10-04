@@ -151,6 +151,11 @@
 
 ### 性能优化（中优先级）
 - [ ] **数据库优化**
+  - [ ] **evidence_limit优化**：从应用层处理改为数据库层处理
+    - 当前实现：全量取回数据后在Python中截取evidence数组
+    - 优化方案：使用MongoDB aggregation pipeline的$slice在数据库层限制
+    - 优点：减少网络传输和内存占用，提升查询性能
+    - 相关文件：`mem0/user_profile/database/mongodb_manager.py`
   - [ ] 词汇表分页性能优化（大量词汇时）
   - [ ] MongoDB 索引优化和查询性能测试
   - [ ] PostgreSQL 查询计划分析
