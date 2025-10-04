@@ -56,12 +56,13 @@ class ProfileManager:
         self.postgres = postgres
         self.mongodb = mongodb
 
-    def _call_llm(self, prompt: str) -> str:
+    def _call_llm(self, prompt: str, response_format=None) -> str:
         """
         Call LLM with prompt
 
         Args:
             prompt: Prompt string
+            response_format: Response format (e.g., {"type": "json_object"})
 
         Returns:
             LLM response string
@@ -69,7 +70,8 @@ class ProfileManager:
         try:
             # Use the LLM's generate_response method
             response = self.llm.generate_response(
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
+                response_format=response_format
             )
             return response
         except Exception as e:
@@ -129,22 +131,28 @@ class ProfileManager:
                 current_time=current_time,
             )
 
-            # Call LLM
+            # Call LLM with JSON response format
             logger.info("Stage 1: Extracting profile information from messages")
-            response = self._call_llm(prompt)
+            response = self._call_llm(prompt, response_format={"type": "json_object"})
+
+            # Log raw response for debugging
+            logger.debug(f"LLM raw response: {response[:500]}")  # First 500 chars
 
             # Parse response
             extracted_data = self._parse_json_response(response)
 
             if not extracted_data:
                 logger.warning("Failed to extract profile information")
+                logger.error(f"Could not parse response: {response[:1000]}")  # First 1000 chars
                 return None
 
             logger.info(f"Stage 1 complete: Extracted {len(extracted_data.get('additional_profile', {}))} fields")
             return extracted_data
 
         except Exception as e:
-            logger.error(f"Stage 1 failed: {e}")
+            logger.error(f"Stage 1 failed: {repr(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
 
     def query_existing_profile(self, user_id: str) -> Dict[str, Any]:
@@ -208,8 +216,8 @@ class ProfileManager:
                 existing_profile=json.dumps(existing_profile, ensure_ascii=False, indent=2),
             )
 
-            # Call LLM
-            response = self._call_llm(prompt)
+            # Call LLM with JSON response format
+            response = self._call_llm(prompt, response_format={"type": "json_object"})
 
             # Parse response
             operations = self._parse_json_response(response)

@@ -103,5 +103,8 @@ class DeepSeekLLM(LLMBase):
             params["tools"] = tools
             params["tool_choice"] = tool_choice
 
+        if response_format:
+            params["response_format"] = response_format
+
         response = self.client.chat.completions.create(**params)
         return self._parse_response(response, tools)

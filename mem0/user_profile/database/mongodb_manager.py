@@ -130,14 +130,15 @@ class MongoDBManager:
         """
         try:
             # Build projection
-            projection = {"_id": 0, "user_id": 0}  # Exclude _id and user_id from result
-
             if options and 'fields' in options:
-                # Only include specified fields
+                # Only include specified fields (cannot mix inclusion and exclusion except for _id)
                 fields = options['fields']
-                projection = {"_id": 0, "user_id": 0}
+                projection = {"_id": 0}  # Only exclude _id
                 for field in fields:
                     projection[field] = 1
+            else:
+                # Exclude _id and user_id from result
+                projection = {"_id": 0, "user_id": 0}
 
             result = self.collection.find_one(
                 {"user_id": user_id},

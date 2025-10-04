@@ -13,8 +13,8 @@ Extract the following information:
 Return a JSON object with this structure:
 
 ```json
-{
-    "basic_info": {
+{{
+    "basic_info": {{
         "name": "张三",
         "nickname": "小张",
         "english_name": "John",
@@ -25,55 +25,55 @@ Return a JSON object with this structure:
         "current_city": "上海",
         "timezone": "Asia/Shanghai",
         "language": "zh-CN"
-    },
-    "additional_profile": {
+    }},
+    "additional_profile": {{
         "interests": [
-            {
+            {{
                 "name": "足球",
                 "degree": 4,
                 "evidence": [
-                    {"text": "周末和朋友踢足球很开心", "timestamp": "2025-10-01T10:30:00"}
+                    {{"text": "周末和朋友踢足球很开心", "timestamp": "2025-10-01T10:30:00"}}
                 ]
-            }
+            }}
         ],
         "skills": [
-            {
+            {{
                 "name": "Python编程",
                 "degree": 3,
                 "evidence": [
-                    {"text": "用Python写了一个数据分析工具", "timestamp": "2025-10-02T14:20:00"}
+                    {{"text": "用Python写了一个数据分析工具", "timestamp": "2025-10-02T14:20:00"}}
                 ]
-            }
+            }}
         ],
         "personality": [
-            {
+            {{
                 "name": "外向",
                 "degree": 4,
                 "evidence": [
-                    {"text": "喜欢参加各种社交活动", "timestamp": "2025-10-03T09:15:00"}
+                    {{"text": "喜欢参加各种社交活动", "timestamp": "2025-10-03T09:15:00"}}
                 ]
-            }
+            }}
         ],
         "social_context": [
-            {
+            {{
                 "name": "family",
                 "details": "已婚，有一个5岁的女儿",
                 "evidence": [
-                    {"text": "女儿今年上幼儿园了", "timestamp": "2025-10-04T08:00:00"}
+                    {{"text": "女儿今年上幼儿园了", "timestamp": "2025-10-04T08:00:00"}}
                 ]
-            }
+            }}
         ],
         "learning_preferences": [
-            {
+            {{
                 "name": "视觉学习者",
                 "details": "喜欢通过图表和视频学习",
                 "evidence": [
-                    {"text": "看视频教程学得更快", "timestamp": "2025-10-05T16:30:00"}
+                    {{"text": "看视频教程学得更快", "timestamp": "2025-10-05T16:30:00"}}
                 ]
-            }
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ## Important Rules
@@ -95,13 +95,13 @@ Messages:
 
 Output:
 ```json
-{
-    "basic_info": {
+{{
+    "basic_info": {{
         "name": "李明",
         "current_city": "杭州"
-    },
-    "additional_profile": {}
-}
+    }},
+    "additional_profile": {{}}
+}}
 ```
 
 ### Example 2: Interest extraction
@@ -110,20 +110,20 @@ Messages:
 
 Output:
 ```json
-{
-    "basic_info": {},
-    "additional_profile": {
+{{
+    "basic_info": {{}},
+    "additional_profile": {{
         "interests": [
-            {
+            {{
                 "name": "摄影",
                 "degree": 4,
                 "evidence": [
-                    {"text": "最近迷上了摄影，每个周末都出去拍照", "timestamp": "2025-10-04T10:00:00"}
+                    {{"text": "最近迷上了摄影，每个周末都出去拍照", "timestamp": "2025-10-04T10:00:00"}}
                 ]
-            }
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ### Example 3: Skill extraction
@@ -132,20 +132,20 @@ Messages:
 
 Output:
 ```json
-{
-    "basic_info": {},
-    "additional_profile": {
+{{
+    "basic_info": {{}},
+    "additional_profile": {{
         "skills": [
-            {
+            {{
                 "name": "JavaScript",
                 "degree": 1,
                 "evidence": [
-                    {"text": "刚开始学JavaScript，写了第一个网页", "timestamp": "2025-10-04T11:00:00"}
+                    {{"text": "刚开始学JavaScript，写了第一个网页", "timestamp": "2025-10-04T11:00:00"}}
                 ]
-            }
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ---
@@ -180,41 +180,41 @@ For each item in the extracted information, decide one of the following operatio
 ## Output Format
 
 ```json
-{
-    "basic_info": {
+{{
+    "basic_info": {{
         "name": "张三",
         "current_city": "上海"
-    },
-    "additional_profile": {
+    }},
+    "additional_profile": {{
         "interests": [
-            {
+            {{
                 "id": "1",
                 "event": "UPDATE",
                 "name": "足球",
                 "degree": 5,
                 "evidence": [
-                    {"text": "周末又赢了一场比赛", "timestamp": "2025-10-08T15:20:00"}
+                    {{"text": "周末又赢了一场比赛", "timestamp": "2025-10-08T15:20:00"}}
                 ]
-            },
-            {
+            }},
+            {{
                 "id": null,
                 "event": "ADD",
                 "name": "摄影",
                 "degree": 3,
                 "evidence": [
-                    {"text": "买了新相机，开始学摄影", "timestamp": "2025-10-09T10:00:00"}
+                    {{"text": "买了新相机，开始学摄影", "timestamp": "2025-10-09T10:00:00"}}
                 ]
-            }
+            }}
         ],
         "skills": [
-            {
+            {{
                 "id": "2",
                 "event": "DELETE",
                 "name": "Java"
-            }
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ## Important Rules
@@ -235,58 +235,58 @@ Extracted: User says "我开始喜欢爬山了"
 Existing: No "爬山" in interests
 Output:
 ```json
-{
-    "additional_profile": {
+{{
+    "additional_profile": {{
         "interests": [
-            {
+            {{
                 "id": null,
                 "event": "ADD",
                 "name": "爬山",
                 "degree": 3,
-                "evidence": [{"text": "我开始喜欢爬山了", "timestamp": "2025-10-10T09:00:00"}]
-            }
+                "evidence": [{{"text": "我开始喜欢爬山了", "timestamp": "2025-10-10T09:00:00"}}]
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ### Example 2: Update degree
 Extracted: User says "我现在是Python专家了"
-Existing: {"id": "5", "name": "Python", "degree": 3, "evidence": [...]}
+Existing: {{"id": "5", "name": "Python", "degree": 3, "evidence": [...]}}
 Output:
 ```json
-{
-    "additional_profile": {
+{{
+    "additional_profile": {{
         "skills": [
-            {
+            {{
                 "id": "5",
                 "event": "UPDATE",
                 "name": "Python",
                 "degree": 5,
-                "evidence": [{"text": "我现在是Python专家了", "timestamp": "2025-10-10T10:00:00"}]
-            }
+                "evidence": [{{"text": "我现在是Python专家了", "timestamp": "2025-10-10T10:00:00"}}]
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ### Example 3: Handle contradiction
 Extracted: User says "我不喜欢足球了"
-Existing: {"id": "1", "name": "足球", "degree": 4, "evidence": [10 entries, oldest 8 months ago]}
+Existing: {{"id": "1", "name": "足球", "degree": 4, "evidence": [10 entries, oldest 8 months ago]}}
 Analysis: Many old evidence, real change → DELETE
 Output:
 ```json
-{
-    "additional_profile": {
+{{
+    "additional_profile": {{
         "interests": [
-            {
+            {{
                 "id": "1",
                 "event": "DELETE",
                 "name": "足球"
-            }
+            }}
         ]
-    }
-}
+    }}
+}}
 ```
 
 ---

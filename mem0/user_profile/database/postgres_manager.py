@@ -69,7 +69,8 @@ class PostgresManager:
                     connection_string,
                     min_size=minconn,
                     max_size=maxconn,
-                    timeout=30.0
+                    timeout=30.0,
+                    open=True  # Explicitly open the pool
                 )
             else:
                 self.connection_pool = ConnectionPool(
