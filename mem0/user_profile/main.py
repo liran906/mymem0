@@ -154,6 +154,8 @@ class UserProfile:
                 - fields: List of field names to return from additional_profile
                   Example: {"fields": ["interests", "skills"]}
                   If None, returns all fields
+                - evidence_limit: Max number of evidence items per entry (default 5, -1 for all)
+                  Example: {"evidence_limit": 10} or {"evidence_limit": -1}
 
         Returns:
             Profile dict with basic_info and additional_profile:
@@ -179,6 +181,12 @@ class UserProfile:
             raise ValueError("user_id is required")
 
         try:
+            # Apply default evidence_limit if not specified
+            if options is None:
+                options = {}
+            if 'evidence_limit' not in options:
+                options['evidence_limit'] = 5  # Default to 5
+
             # Query basic_info
             basic_info = self.postgres.get(user_id) or {}
 
@@ -192,6 +200,55 @@ class UserProfile:
             }
         except Exception as e:
             logger.error(f"Failed to get profile for user {user_id}: {e}")
+            raise
+
+    def get_missing_fields(self, user_id: str, source: str = "both") -> Dict[str, Any]:
+        """
+        Get missing fields in user profile
+
+        Args:
+            user_id: User ID (required)
+            source: Which source to check - "pg", "mongo", or "both" (default)
+
+        Returns:
+            Result dict with missing fields:
+            {
+                "user_id": "user123",
+                "missing_fields": {
+                    "basic_info": ["hometown", "gender", "birthday"],
+                    "additional_profile": ["personality", "learning_preferences"]
+                }
+            }
+
+        Raises:
+            ValueError: If user_id is not provided or source is invalid
+        """
+        # Validate input
+        if not user_id:
+            raise ValueError("user_id is required")
+
+        if source not in ["pg", "mongo", "both"]:
+            raise ValueError("source must be 'pg', 'mongo', or 'both'")
+
+        try:
+            result = {
+                "user_id": user_id,
+                "missing_fields": {}
+            }
+
+            # Check PostgreSQL basic_info
+            if source in ["pg", "both"]:
+                missing_basic = self.postgres.get_missing_fields(user_id)
+                result["missing_fields"]["basic_info"] = missing_basic
+
+            # Check MongoDB additional_profile
+            if source in ["mongo", "both"]:
+                missing_additional = self.mongodb.get_missing_fields(user_id)
+                result["missing_fields"]["additional_profile"] = missing_additional
+
+            return result
+        except Exception as e:
+            logger.error(f"Failed to get missing fields for user {user_id}: {e}")
             raise
 
     def delete_profile(self, user_id: str) -> Dict[str, Any]:

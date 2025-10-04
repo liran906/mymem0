@@ -252,6 +252,42 @@ class PostgresManager:
             logger.error(f"Failed to delete basic_info for user {user_id}: {e}")
             raise
 
+    def get_missing_fields(self, user_id: str) -> list:
+        """
+        Get list of missing basic_info fields for a user
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of missing field names (fields that are NULL or empty)
+        """
+        # Define all expected basic_info fields (excluding system fields)
+        ALL_FIELDS = [
+            'name', 'nickname', 'english_name', 'birthday', 'gender',
+            'nationality', 'hometown', 'current_city', 'timezone', 'language'
+        ]
+
+        try:
+            # Get current basic_info
+            basic_info = self.get(user_id)
+
+            if not basic_info:
+                # User doesn't exist, all fields are missing
+                return ALL_FIELDS
+
+            # Find missing fields (NULL or empty values)
+            missing_fields = []
+            for field in ALL_FIELDS:
+                value = basic_info.get(field)
+                if value is None or value == '':
+                    missing_fields.append(field)
+
+            return missing_fields
+        except Exception as e:
+            logger.error(f"Failed to get missing fields for user {user_id}: {e}")
+            raise
+
     def close(self):
         """Close connection pool"""
         if self.connection_pool:

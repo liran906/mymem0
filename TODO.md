@@ -55,9 +55,11 @@
 #### Phase 3: 测试和优化 ⏳ (部分完成 - 2025-10-04)
 - [x] 集成测试脚本
   - [x] 编写 `test/test_user_profile.py` - 完整 Pipeline 端到端测试
+  - [x] 编写 `test/test_user_profile_advanced.py` - 高级场景测试（10个测试用例）
   - [x] 测试数据库初始化
   - [x] 测试 Profile CRUD 操作
   - [x] 测试 field filtering
+  - [x] 测试冲突处理、degree调整、evidence积累等场景
 
 - [ ] 单元测试（待完善）
   - [ ] PostgresManager 单元测试
@@ -66,17 +68,41 @@
   - [ ] LLM 输出解析测试
 
 - [ ] 场景测试（待完善）
-  - [ ] 冲突处理场景测试（evidence 分析）
-  - [ ] 边界情况测试（空输入、格式错误等）
+  - [x] 冲突处理场景测试（evidence 分析）✅
+  - [x] 边界情况测试（空输入、格式错误等）✅
   - [ ] 并发场景测试
 
 - [x] 错误处理
   - [x] 四层错误处理实现（LLM → JSON → 字段 → DB）
-  - [x] 日志记录
+  - [x] 日志记录（已优化Docker日志输出）
   - [ ] 异常场景 fallback 机制（待完善）
   - [ ] 数据一致性保证（待完善）
 
-**备注**: 基础集成测试已完成，单元测试和高级场景测试待后续完善
+**备注**: 基础集成测试已完成，10个高级场景测试已完成，单元测试待后续完善
+
+#### Phase 3.5: API增强 ✅ (已完成 - 2025-10-04)
+- [x] evidence_limit 参数实现
+  - [x] MongoDBManager 添加 `_limit_evidence()` 方法
+  - [x] UserProfile.get_profile() 支持 evidence_limit 参数
+  - [x] FastAPI GET /profile 添加 evidence_limit 参数（默认5，-1表示全部）
+  - [x] 按时间倒序返回最新的N条evidence
+
+- [x] missing-fields 接口实现
+  - [x] PostgresManager 添加 `get_missing_fields()` 方法
+  - [x] MongoDBManager 添加 `get_missing_fields()` 方法
+  - [x] UserProfile 添加 `get_missing_fields()` 方法
+  - [x] FastAPI 添加 GET /profile/missing-fields 接口
+  - [x] 支持 source 参数（pg/mongo/both）
+
+- [x] social_context schema 扩展
+  - [x] 添加 teachers 字段（name, subject, info）
+  - [x] 添加 others 字段（name, relation, info）
+  - [x] 更新 prompts.py 示例
+
+- [x] 鉴权TODO标记
+  - [x] 在所有profile endpoints添加TODO注释（POST/GET/DELETE/missing-fields）
+
+**提交**: 待提交 - feat: Add UserProfile API enhancements (evidence_limit, missing-fields, auth TODOs)
 
 #### Phase 4: 文档和部署 ✅ (已完成 - 2025-10-04)
 - [x] 文档更新

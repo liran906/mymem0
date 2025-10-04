@@ -301,6 +301,10 @@ def set_profile(profile_create: ProfileCreate):
     Returns:
         dict: Result with update status and operations performed
     """
+    # TODO: Add authentication/authorization
+    # Verify user has permission to update this profile
+    # Consider implementing JWT token validation or API key check
+
     try:
         response = USER_PROFILE_INSTANCE.set_profile(
             user_id=profile_create.user_id,
@@ -317,7 +321,8 @@ def set_profile(profile_create: ProfileCreate):
 @app.get("/profile", summary="Get user profile")
 def get_profile(
     user_id: str,
-    fields: Optional[str] = None
+    fields: Optional[str] = None,
+    evidence_limit: int = 5
 ):
     """
     Retrieve user profile data.
@@ -326,14 +331,20 @@ def get_profile(
         user_id: User ID (required)
         fields: Comma-separated list of fields to return from additional_profile
                 e.g., "interests,skills" (optional, returns all if not specified)
+        evidence_limit: Max number of evidence items to return per entry
+                       Default: 5, use -1 for all evidence
 
     Returns:
         dict: User profile with basic_info and additional_profile
     """
+    # TODO: Add authentication/authorization
+    # Verify user has permission to access this profile
+    # Consider implementing JWT token validation or API key check
+
     try:
-        options = None
+        options = {"evidence_limit": evidence_limit}
         if fields:
-            options = {"fields": [f.strip() for f in fields.split(",")]}
+            options["fields"] = [f.strip() for f in fields.split(",")]
 
         response = USER_PROFILE_INSTANCE.get_profile(
             user_id=user_id,
@@ -344,6 +355,45 @@ def get_profile(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logging.exception("Error in get_profile:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/profile/missing-fields", summary="Get missing profile fields")
+def get_missing_fields(
+    user_id: str,
+    source: str = "both"
+):
+    """
+    Get list of missing fields in user profile.
+
+    Args:
+        user_id: User ID (required)
+        source: Which source to check - "pg" (PostgreSQL), "mongo" (MongoDB), or "both" (default)
+
+    Returns:
+        dict: Missing fields for the user
+        {
+            "user_id": "user123",
+            "missing_fields": {
+                "basic_info": ["hometown", "gender"],
+                "additional_profile": ["personality"]
+            }
+        }
+    """
+    # TODO: Add authentication/authorization
+    # Verify user has permission to access this profile
+    # Consider implementing JWT token validation or API key check
+
+    try:
+        response = USER_PROFILE_INSTANCE.get_missing_fields(
+            user_id=user_id,
+            source=source
+        )
+        return JSONResponse(content=response)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.exception("Error in get_missing_fields:")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -358,6 +408,10 @@ def delete_profile(user_id: str):
     Returns:
         dict: Deletion result with success status
     """
+    # TODO: Add authentication/authorization
+    # Verify user has permission to delete this profile
+    # Consider implementing JWT token validation or API key check
+
     try:
         response = USER_PROFILE_INSTANCE.delete_profile(user_id=user_id)
         return JSONResponse(content=response)

@@ -123,6 +123,7 @@ class MongoDBManager:
             user_id: User ID
             options: Query options
                 - fields: List of field names to return (e.g., ['interests', 'skills'])
+                - evidence_limit: Max number of evidence items to return per item (default 5, -1 for all)
                 - If None, return all fields
 
         Returns:
@@ -145,10 +146,44 @@ class MongoDBManager:
                 projection
             )
 
+            # Apply evidence_limit if specified
+            if result and options and 'evidence_limit' in options:
+                evidence_limit = options['evidence_limit']
+                if evidence_limit != -1:  # -1 means return all
+                    result = self._limit_evidence(result, evidence_limit)
+
             return result
         except PyMongoError as e:
             logger.error(f"Failed to get additional_profile for user {user_id}: {e}")
             raise
+
+    def _limit_evidence(self, profile: Dict[str, Any], limit: int) -> Dict[str, Any]:
+        """
+        Limit evidence items in profile data
+
+        Args:
+            profile: Profile data dictionary
+            limit: Maximum number of evidence items per entry
+
+        Returns:
+            Profile with limited evidence (sorted by timestamp descending)
+        """
+        # Fields that contain evidence arrays
+        evidence_fields = ['interests', 'skills', 'personality', 'social_context', 'learning_preferences']
+
+        for field in evidence_fields:
+            if field in profile and isinstance(profile[field], list):
+                for item in profile[field]:
+                    if isinstance(item, dict) and 'evidence' in item and isinstance(item['evidence'], list):
+                        # Sort by timestamp descending (most recent first) and limit
+                        sorted_evidence = sorted(
+                            item['evidence'],
+                            key=lambda x: x.get('timestamp', ''),
+                            reverse=True
+                        )
+                        item['evidence'] = sorted_evidence[:limit]
+
+        return profile
 
     def update_field(self, user_id: str, field_name: str, field_data: List[Dict[str, Any]]) -> bool:
         """
@@ -292,6 +327,42 @@ class MongoDBManager:
                 return False
         except PyMongoError as e:
             logger.error(f"Failed to delete additional_profile for user {user_id}: {e}")
+            raise
+
+    def get_missing_fields(self, user_id: str) -> list:
+        """
+        Get list of missing additional_profile fields for a user
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of missing field names (fields that don't exist or are empty arrays)
+        """
+        # Define all expected additional_profile fields
+        ALL_FIELDS = [
+            'interests', 'skills', 'personality', 'social_context', 'learning_preferences'
+        ]
+
+        try:
+            # Get current additional_profile
+            profile = self.get(user_id)
+
+            if not profile:
+                # User doesn't exist, all fields are missing
+                return ALL_FIELDS
+
+            # Find missing fields (not exist or empty arrays)
+            missing_fields = []
+            for field in ALL_FIELDS:
+                value = profile.get(field)
+                # Field is missing if it doesn't exist or is an empty list/dict
+                if value is None or (isinstance(value, (list, dict)) and len(value) == 0):
+                    missing_fields.append(field)
+
+            return missing_fields
+        except PyMongoError as e:
+            logger.error(f"Failed to get missing fields for user {user_id}: {e}")
             raise
 
     def close(self):
