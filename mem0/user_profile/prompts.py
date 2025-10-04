@@ -5,7 +5,7 @@ Prompts for UserProfile LLM calls
 EXTRACT_PROFILE_PROMPT = """You are a profile extraction assistant. Your task is to extract user profile information from conversation messages.
 
 Extract the following information:
-1. **basic_info**: Basic personal information (name, birthday, location, etc.)
+1. **basic_info**: Basic personal information (name, birthday, location, etc.) - **Non-authoritative, conversation-extracted reference data only**
 2. **additional_profile**: Extended information (interests, skills, personality, social_context, learning_preferences)
 
 ## Output Format
@@ -32,7 +32,7 @@ Return a JSON object with this structure:
                 "name": "足球",
                 "degree": 4,
                 "evidence": [
-                    {{"text": "周末和朋友踢足球很开心", "timestamp": "2025-10-01T10:30:00"}}
+                    {{"text": "周末和朋友踢足球很开心"}}
                 ]
             }}
         ],
@@ -41,7 +41,7 @@ Return a JSON object with this structure:
                 "name": "Python编程",
                 "degree": 3,
                 "evidence": [
-                    {{"text": "用Python写了一个数据分析工具", "timestamp": "2025-10-02T14:20:00"}}
+                    {{"text": "用Python写了一个数据分析工具"}}
                 ]
             }}
         ],
@@ -50,7 +50,7 @@ Return a JSON object with this structure:
                 "name": "外向",
                 "degree": 4,
                 "evidence": [
-                    {{"text": "喜欢参加各种社交活动", "timestamp": "2025-10-03T09:15:00"}}
+                    {{"text": "喜欢参加各种社交活动"}}
                 ]
             }}
         ],
@@ -69,19 +69,19 @@ Return a JSON object with this structure:
             }},
             "friends": [
                 {{
-                    "name": "Amy",
-                    "info": ["kind and loving", "plays football"]
+                    "name": "Jack",
+                    "info": ["plays basketball", "likes movies"]
                 }},
                 {{
-                    "name": "Bob",
-                    "info": ["fair", "good at drawing"]
+                    "name": "Tom",
+                    "info": ["classmate", "studies together"]
                 }}
             ],
             "others": [
                 {{
-                    "name": "Jack",
-                    "relation": "brother",
-                    "info": ["plays basketball", "likes movies"]
+                    "name": "Amy",
+                    "relation": "teacher",
+                    "info": ["teaches math", "very patient"]
                 }},
                 {{
                     "name": "Lisa",
@@ -101,29 +101,32 @@ Return a JSON object with this structure:
 
 ## Important Rules
 
-1. **Evidence-based**: Every extracted attribute must have evidence (text + timestamp)
-   - For interests, skills, personality: Include evidence array with text and timestamp
+1. **Language consistency**: Keep the language of JSON values consistent with user input (no translation between Chinese/English)
 
-2. **Degree system**:
-   - For interests: 1=不太喜欢, 2=一般, 3=喜欢, 4=很喜欢, 5=最爱
-   - For skills: 1=初学, 2=入门, 3=熟练, 4=精通, 5=专家
-   - For personality: 1=不明显, 2=较弱, 3=中等, 4=较强, 5=非常明显
+2. **Evidence-based**: Every extracted attribute must have evidence (text only, NO timestamp)
+   - For interests, skills, personality: Include evidence array with text field only
+   - DO NOT include timestamp in evidence - timestamps are handled by the backend
 
-3. **social_context structure** (nested object, NOT array):
-   - family: Object with father/mother/siblings keys
-   - friends: Array of friends with name and info
-   - others: Array of other relations (brother, neighbor, etc.) with name, relation, and info
+3. **Degree system** (use English terms):
+   - For interests: 1=dislike, 2=neutral, 3=like, 4=really like, 5=favorite
+   - For skills: 1=beginner, 2=learning, 3=proficient, 4=advanced, 5=expert
+   - For personality: 1=not obvious, 2=weak, 3=moderate, 4=strong, 5=very strong
 
-4. **learning_preferences structure** (object, NOT array):
+4. **social_context structure** (nested object, NOT array):
+   - family: Object with father/mother keys (NO siblings - siblings go to "others")
+   - friends: Array of friends with name and info (NO relation field needed)
+   - others: Array of other relations (teachers, siblings, relatives, neighbors, etc.) with name, relation, and info
+
+5. **learning_preferences structure** (object, NOT array):
    - preferred_time: "morning" / "afternoon" / "evening"
    - preferred_style: "visual" / "auditory" / "kinesthetic"
    - difficulty_level: "beginner" / "intermediate" / "advanced"
 
-5. **Timestamp**: Use the message timestamp or current time if not available
-
 6. **Only extract explicit information**: Don't infer or guess
 
-7. **Return null for missing fields**: If no information found, return null or empty object
+7. **Omit missing fields**: If no information found for a field, DO NOT include that field in the JSON (both key and value should be omitted)
+   - Return only the fields that have data from the conversation
+   - Example: If no interests mentioned, don't include "interests" key at all
 
 ## Examples
 
@@ -137,8 +140,7 @@ Output:
     "basic_info": {{
         "name": "李明",
         "current_city": "杭州"
-    }},
-    "additional_profile": {{}}
+    }}
 }}
 ```
 
@@ -149,14 +151,13 @@ Messages:
 Output:
 ```json
 {{
-    "basic_info": {{}},
     "additional_profile": {{
         "interests": [
             {{
                 "name": "摄影",
                 "degree": 4,
                 "evidence": [
-                    {{"text": "最近迷上了摄影，每个周末都出去拍照", "timestamp": "2025-10-04T10:00:00"}}
+                    {{"text": "最近迷上了摄影，每个周末都出去拍照"}}
                 ]
             }}
         ]
@@ -164,24 +165,31 @@ Output:
 }}
 ```
 
-### Example 3: Skill extraction
+### Example 3: Social context (family and friends)
 Messages:
-- User: "我刚开始学JavaScript，写了第一个网页"
+- User: "我爸爸是医生，我妈妈是老师"
+- User: "我有个好朋友Jack，他喜欢打篮球"
 
 Output:
 ```json
 {{
-    "basic_info": {{}},
     "additional_profile": {{
-        "skills": [
-            {{
-                "name": "JavaScript",
-                "degree": 1,
-                "evidence": [
-                    {{"text": "刚开始学JavaScript，写了第一个网页", "timestamp": "2025-10-04T11:00:00"}}
-                ]
-            }}
-        ]
+        "social_context": {{
+            "family": {{
+                "father": {{
+                    "career": "doctor"
+                }},
+                "mother": {{
+                    "career": "teacher"
+                }}
+            }},
+            "friends": [
+                {{
+                    "name": "Jack",
+                    "info": ["likes basketball"]
+                }}
+            ]
+        }}
     }}
 }}
 ```
@@ -191,8 +199,6 @@ Output:
 Now extract profile information from the following messages:
 
 {messages}
-
-Current timestamp: {current_time}
 
 Return only the JSON object, no additional text.
 """
@@ -204,7 +210,7 @@ UPDATE_PROFILE_PROMPT = """You are a profile update assistant. Your task is to a
 ### Extracted Information (from messages)
 {extracted_info}
 
-### Existing Profile (from database)
+### Existing Profile (from database, with timestamps for reference)
 {existing_profile}
 
 ## Your Task
@@ -231,7 +237,7 @@ For each item in the extracted information, decide one of the following operatio
                 "name": "足球",
                 "degree": 5,
                 "evidence": [
-                    {{"text": "周末又赢了一场比赛", "timestamp": "2025-10-08T15:20:00"}}
+                    {{"text": "周末又赢了一场比赛"}}
                 ]
             }},
             {{
@@ -240,7 +246,7 @@ For each item in the extracted information, decide one of the following operatio
                 "name": "摄影",
                 "degree": 3,
                 "evidence": [
-                    {{"text": "买了新相机，开始学摄影", "timestamp": "2025-10-09T10:00:00"}}
+                    {{"text": "买了新相机，开始学摄影"}}
                 ]
             }}
         ],
@@ -257,14 +263,24 @@ For each item in the extracted information, decide one of the following operatio
 
 ## Important Rules
 
-1. **ID mapping**: Use the ID from existing profile. For ADD operations, set id=null
-2. **Evidence analysis for contradictions**:
+1. **Language consistency**: Keep the language of JSON values consistent with user input (no translation between Chinese/English)
+
+2. **NO timestamps in output**: DO NOT include timestamp in evidence - timestamps are handled by the backend
+   - You can USE the timestamps from existing profile to understand how old the data is
+   - But DO NOT return timestamps in your output
+
+3. **ID mapping**: Use the ID from existing profile. For ADD operations, set id=null
+
+4. **Evidence analysis for contradictions**:
    - If user says "不喜欢了" but has 10 recent evidence entries showing they like it → reduce degree (temporary mood)
    - If user says "不喜欢了" and has only 2 old evidence entries → DELETE (previous judgment may be wrong)
    - If user says "不喜欢了" and has 10 old evidence entries (6+ months ago) → DELETE (real change)
-3. **Degree updates**: When updating, combine new evidence with existing evidence to determine new degree
-4. **basic_info**: Always use direct UPSERT (no ADD/UPDATE/DELETE events)
-5. **Evidence consolidation**: Keep recent and important evidence, limit to ~5 entries per item
+
+5. **Degree updates**: When updating, combine new evidence with existing evidence to determine new degree
+
+6. **basic_info**: Always use direct UPSERT (no ADD/UPDATE/DELETE events)
+
+7. **Evidence consolidation**: Return only NEW evidence to add - the backend will merge with existing evidence
 
 ## Examples
 
@@ -281,7 +297,7 @@ Output:
                 "event": "ADD",
                 "name": "爬山",
                 "degree": 3,
-                "evidence": [{{"text": "我开始喜欢爬山了", "timestamp": "2025-10-10T09:00:00"}}]
+                "evidence": [{{"text": "我开始喜欢爬山了"}}]
             }}
         ]
     }}
@@ -301,7 +317,7 @@ Output:
                 "event": "UPDATE",
                 "name": "Python",
                 "degree": 5,
-                "evidence": [{{"text": "我现在是Python专家了", "timestamp": "2025-10-10T10:00:00"}}]
+                "evidence": [{{"text": "我现在是Python专家了"}}]
             }}
         ]
     }}
@@ -310,7 +326,7 @@ Output:
 
 ### Example 3: Handle contradiction
 Extracted: User says "我不喜欢足球了"
-Existing: {{"id": "1", "name": "足球", "degree": 4, "evidence": [10 entries, oldest 8 months ago]}}
+Existing: {{"id": "1", "name": "足球", "degree": 4, "evidence": [10 entries with timestamps 8 months ago]}}
 Analysis: Many old evidence, real change → DELETE
 Output:
 ```json

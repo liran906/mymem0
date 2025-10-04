@@ -110,6 +110,37 @@ class ProfileManager:
             logger.error(f"Unexpected error parsing response: {e}")
             return None
 
+    def _add_timestamps_to_evidence(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add timestamps to evidence entries (backend-generated)
+
+        LLM returns evidence without timestamps, we add them here
+
+        Args:
+            data: Extracted profile data from LLM
+
+        Returns:
+            Data with timestamps added to all evidence
+        """
+        current_time = get_current_timestamp()
+
+        def process_item(obj):
+            if isinstance(obj, dict):
+                # If this object has 'evidence' field, add timestamps
+                if 'evidence' in obj and isinstance(obj['evidence'], list):
+                    for evidence_entry in obj['evidence']:
+                        if isinstance(evidence_entry, dict) and 'timestamp' not in evidence_entry:
+                            evidence_entry['timestamp'] = current_time
+
+                # Recursively process all values
+                return {k: process_item(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [process_item(item) for item in obj]
+            else:
+                return obj
+
+        return process_item(data)
+
     def extract_profile(self, messages: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
         """
         Stage 1: Extract profile information from messages using LLM
@@ -118,17 +149,15 @@ class ProfileManager:
             messages: List of message dicts with 'role' and 'content'
 
         Returns:
-            Extracted profile dict with basic_info and additional_profile
+            Extracted profile dict with basic_info and additional_profile (with timestamps added)
         """
         try:
             # Format messages for prompt
             formatted_messages = format_messages_for_llm(messages)
-            current_time = get_current_timestamp()
 
-            # Build prompt
+            # Build prompt (no current_time parameter anymore)
             prompt = EXTRACT_PROFILE_PROMPT.format(
-                messages=formatted_messages,
-                current_time=current_time,
+                messages=formatted_messages
             )
 
             # Call LLM with JSON response format
@@ -145,6 +174,9 @@ class ProfileManager:
                 logger.warning("Failed to extract profile information")
                 logger.error(f"Could not parse response: {response[:1000]}")  # First 1000 chars
                 return None
+
+            # Add timestamps to evidence (backend-generated)
+            extracted_data = self._add_timestamps_to_evidence(extracted_data)
 
             logger.info(f"Stage 1 complete: Extracted {len(extracted_data.get('additional_profile', {}))} fields")
             return extracted_data
@@ -202,10 +234,10 @@ class ProfileManager:
 
         Args:
             extracted_info: Extracted profile information
-            existing_profile: Existing profile data (with integer IDs)
+            existing_profile: Existing profile data (with integer IDs and timestamps for reference)
 
         Returns:
-            Operations dict with ADD/UPDATE/DELETE decisions
+            Operations dict with ADD/UPDATE/DELETE decisions (timestamps added by backend)
         """
         try:
             logger.info("Stage 3: Deciding operations (ADD/UPDATE/DELETE)")
@@ -225,6 +257,9 @@ class ProfileManager:
             if not operations:
                 logger.warning("Failed to decide operations")
                 return None
+
+            # Add timestamps to new evidence entries (backend-generated)
+            operations = self._add_timestamps_to_evidence(operations)
 
             logger.info(f"Stage 3 complete: Decided operations")
             return operations

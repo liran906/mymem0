@@ -2,6 +2,48 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Context
+
+If you (Claude) lack sufficient context about this project, please **first read** the following documents:
+
+1. `docs/mem0_integration_analysis.md`
+
+2. `docs/summary_and_challenges.md`
+
+3. `CLAUDE.md`
+
+4. `DEV_GUIDE_UserProfile.md`
+
+5. Conversation records between me and the Claude instance under `discuss/*.md`  
+   (You don’t need to read everything — prioritize the most recent and relevant discussions.)
+
+## Communication Requirements
+
+1. All communication during collaboration should be stored in the `discuss` folder at the project root,  
+   formatted in Markdown (`.md`).  
+   Each file should be sequentially numbered by date or creation time.
+
+2. Once a consensus or decision is reached, **update**:
+   - `TODO.md`
+   - `DEV_GUIDE_UserProfile.md`
+   - and any other affected documents in the root directory.
+
+3. During implementation, always **synchronize updates** to `TODO.md`.  
+   If a change involves previously discussed content, confirm with me **before implementing**  
+   and then update `DEV_GUIDE_UserProfile.md` accordingly if I approve the change.
+
+4. After completing each development phase, perform a `git commit` with a clear message  
+   summarizing what was implemented or changed.
+
+---
+
+### Additional Notes
+
+- If you are uncertain whether a modification affects previous agreements or documents,  
+  please ask for confirmation first.
+- Use concise, consistent Markdown formatting in all communication files.
+- Avoid editing sensitive configuration files (e.g., `.env`) unless explicitly instructed.
+
 ## Project Overview
 
 This is a customized Mem0 service that provides memory management capabilities for AI applications. It uses PostgreSQL with pgvector for vector storage, DeepSeek for LLM operations, and Qwen (DashScope) for embeddings. The project is built on top of the mem0ai library with custom modifications for performance monitoring and database configuration.
@@ -177,8 +219,10 @@ Automatically extracts and manages user profiles from conversations, including:
 
 ### Key Features
 - **Two-stage LLM Pipeline**: Extract info → Decide updates (ADD/UPDATE/DELETE)
+- **Backend Timestamp Generation**: LLM returns evidence text only, backend adds timestamps automatically
 - **Smart Conflict Resolution**: LLM analyzes evidence quantity and timing to handle contradictions
 - **Unified degree system**: Integer 1-5 for all attributes (interests/skills/personality)
+- **Flexible Evidence Retrieval**: Control evidence return with evidence_limit parameter (0/N/-1)
 
 ### Documentation
 - **Development Guide**: `DEV_GUIDE_UserProfile.md` (complete implementation guide)

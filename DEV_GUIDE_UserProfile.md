@@ -282,29 +282,26 @@ CREATE TRIGGER update_user_profile_updated_at
                 "name": "Mary",
                 "career": "teacher",
                 "info": ["strict", "cooks delicious meals"]
-            },
-            "siblings": ["younger brother"]
+            }
         },
         "friends": [
-            {"name": "Tom", "relation": "classmate"},
-            {"name": "Jerry", "relation": "neighbor"}
-        ],
-        "teachers": [
             {
                 "name": "Amy",
-                "subject": "math",
                 "info": ["kind and loving", "plays football"]
             },
             {
                 "name": "Bob",
-                "subject": "english",
-                "info": ["strict but fair", "good at pronunciation"]
+                "info": ["fair", "good at drawing"]
+            },
+            {
+                "name": "Charlie",
+                "info": ["friendly", "likes movies"]
             }
         ],
         "others": [
             {
                 "name": "Jack",
-                "relation": "friend",  // friend, relative, colleague, neighbor, etc.
+                "relation": "brother",  // teacher, relative, sibling, neighbor, etc.
                 "info": ["plays basketball", "likes movies"]
             },
             {
@@ -545,8 +542,8 @@ PROFILE_UPDATE_DECISION_PROMPT = """你是一个用户画像管理专家，负�
             "event": "UPDATE",
             "new_degree": 4,
             "new_evidence": {{
-                "text": "和朋友踢足球很开心",
-                "timestamp": "{current_time}"
+                "text": "和朋友踢足球很开心"
+                // 注意：不需要返回 timestamp，后端会自动添加
             }},
             "reason": "新增了积极的证据"
         }},
@@ -555,8 +552,8 @@ PROFILE_UPDATE_DECISION_PROMPT = """你是一个用户画像管理专家，负�
             "event": "ADD",
             "new_degree": 3,
             "new_evidence": {{
-                "text": "吃了北京烤鸭，很好吃",
-                "timestamp": "{current_time}"
+                "text": "吃了北京烤鸭，很好吃"
+                // 注意：不需要返回 timestamp，后端会自动添加
             }},
             "reason": "新发现的兴趣"
         }}
@@ -564,6 +561,11 @@ PROFILE_UPDATE_DECISION_PROMPT = """你是一个用户画像管理专家，负�
     "skills": [...],
     "personality": [...]
 }}
+
+**重要说明**：
+- LLM 只需返回 evidence 的 text 字段
+- timestamp 由后端自动添加（`profile_manager.py` 的 `_add_timestamps_to_evidence()` 方法）
+- 详见 `discuss/22-prompts-implemented.md`
 
 **判断规则**：
 
