@@ -105,7 +105,13 @@ Return a JSON object with this structure:
 
 ## Important Rules
 
-1. **Language consistency**: Keep the language of JSON values consistent with user input (no translation between Chinese/English)
+1. **❗CRITICAL - Language consistency**: Keep the EXACT language of user input in ALL fields
+   - ❌ WRONG: User says "退休了" → You output "retired"
+   - ✅ CORRECT: User says "退休了" → You output "退休了"
+   - ❌ WRONG: User says "designer" → You output "设计师"
+   - ✅ CORRECT: User says "designer" → You output "designer"
+   - **NO translation between Chinese/English/any languages**
+   - **Copy the EXACT words from user's message**
 
 2. **Evidence-based**: Every extracted attribute must have evidence (text only, NO timestamp)
    - For interests, skills, personality: Include evidence array with text field only
@@ -205,7 +211,7 @@ Output:
 }}
 ```
 
-### Example 3: Social context - name field rules
+### Example 3: Social context - name field rules (❗Language consistency)
 Messages:
 - User: "我爸爸叫李明，是医生。我妈妈是老师"
 - User: "我有个好朋友Jack，他喜欢打篮球"
@@ -218,17 +224,17 @@ Output:
             "family": {{
                 "father": {{
                     "name": "李明",
-                    "info": ["doctor"]
+                    "info": ["医生"]
                 }},
                 "mother": {{
                     "name": null,
-                    "info": ["teacher"]
+                    "info": ["老师"]
                 }}
             }},
             "friends": [
                 {{
                     "name": "Jack",
-                    "info": ["likes basketball"]
+                    "info": ["喜欢打篮球"]
                 }}
             ]
         }}
@@ -236,7 +242,7 @@ Output:
 }}
 ```
 
-### Example 4: Social context - collateral relatives go to others
+### Example 4: Social context - collateral relatives go to others (❗Language consistency)
 Messages:
 - User: "我有两个哥哥，大哥叫小明，在北京工作"
 - User: "我舅舅是工程师，对我很好"
@@ -250,19 +256,19 @@ Output:
                 "brother": [
                     {{
                         "name": "小明",
-                        "info": ["older brother", "works in Beijing"]
+                        "info": ["大哥", "在北京工作"]
                     }},
                     {{
                         "name": null,
-                        "info": ["older brother"]
+                        "info": ["哥哥"]
                     }}
                 ]
             }},
             "others": [
                 {{
                     "name": null,
-                    "relation": "uncle",
-                    "info": ["engineer", "very kind to me"]
+                    "relation": "舅舅",
+                    "info": ["工程师", "对我很好"]
                 }}
             ]
         }}
@@ -270,7 +276,7 @@ Output:
 }}
 ```
 
-### Example 5: Social context - spouse and children
+### Example 5: Social context - spouse and children (❗Language consistency)
 Messages:
 - User: "我老婆叫小芳，是设计师。我们有个女儿叫小静静，今年三岁"
 
@@ -282,12 +288,12 @@ Output:
             "family": {{
                 "spouse": {{
                     "name": "小芳",
-                    "info": ["designer"]
+                    "info": ["设计师"]
                 }},
                 "daughter": [
                     {{
                         "name": "小静静",
-                        "info": ["three years old"]
+                        "info": ["三岁"]
                     }}
                 ]
             }}
@@ -462,13 +468,13 @@ Output:
 }}
 ```
 
-### Example 4: social_context deep merge - ADD new relationship
+### Example 4: social_context deep merge - ADD new relationship (❗Language consistency)
 Extracted: User says "我老婆叫小芳，是设计师"
 Existing: {{
     "social_context": {{
         "family": {{
-            "father": {{"name": null, "info": ["retired"]}},
-            "mother": {{"name": null, "info": ["retired"]}}
+            "father": {{"name": null, "info": ["退休了"]}},
+            "mother": {{"name": null, "info": ["退休了"]}}
         }}
     }}
 }}
@@ -482,7 +488,7 @@ Output:
                 "spouse": {{
                     "event": "ADD",
                     "name": "小芳",
-                    "info": ["designer"]
+                    "info": ["设计师"]
                 }}
             }}
         }}
@@ -491,13 +497,13 @@ Output:
 ```
 Note: Backend will merge this with existing father/mother. Do NOT return father/mother here.
 
-### Example 5: social_context deep merge - UPDATE existing relationship
+### Example 5: social_context deep merge - UPDATE existing relationship (❗Language consistency)
 Extracted: User says "我爸爸身体很好"
 Existing: {{
     "social_context": {{
         "family": {{
-            "father": {{"name": "李明", "info": ["retired"]}},
-            "mother": {{"name": null, "info": ["retired"]}}
+            "father": {{"name": "李明", "info": ["退休了"]}},
+            "mother": {{"name": null, "info": ["退休了"]}}
         }}
     }}
 }}
@@ -511,7 +517,7 @@ Output:
                 "father": {{
                     "event": "UPDATE",
                     "name": "李明",
-                    "info": ["retired", "healthy"]
+                    "info": ["退休了", "身体很好"]
                 }}
             }}
         }}
