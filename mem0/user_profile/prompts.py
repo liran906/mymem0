@@ -407,6 +407,51 @@ For each item in the extracted information, decide one of the following operatio
    - UPDATE: Update existing relationship info (e.g., add new info about existing father)
    - DELETE: Remove relationship (only when explicitly stated)
 
+9. **❗CRITICAL - Personality conflict detection and degree reasonableness**:
+
+   **Before adding/updating personality traits, check for semantic conflicts:**
+
+   **Conflict detection examples**:
+   - "粗枝大叶/粗心" conflicts with "细心/认真负责"
+   - "内向" conflicts with "外向"
+   - "悲观" conflicts with "乐观"
+   - "冲动" conflicts with "冷静/理性"
+
+   **When conflict detected, analyze evidence and decide**:
+
+   a. **Insufficient evidence for new trait** (1-2 evidence, especially single incident):
+      - ❌ DO NOT add with high degree (degree 4-5)
+      - ✅ Either SKIP, or add with low degree (degree 2-3) if evidence is clear
+      - Example: Single criticism "粗枝大叶" should NOT override existing "认真负责 (degree 4)"
+
+   b. **Strong evidence for real change** (multiple recent evidence vs old evidence):
+      - If new evidence: 5+ entries, recent (within 3 months)
+      - And old evidence: older than 6 months
+      - ✅ DELETE old trait, ADD new trait
+      - Example: Was "内向" 1 year ago, but now 10 recent evidence showing "外向" behavior
+
+   c. **Reduce degree of existing trait** (conflicting evidence but not conclusive):
+      - If new evidence is moderate but conflicts with existing
+      - ✅ UPDATE existing trait to lower degree instead of DELETE
+      - Example: "认真负责 degree 5" → UPDATE to "认真负责 degree 3" when there's some evidence of carelessness
+
+   d. **❗Complex human nature - Contradictory traits can coexist** (RARE cases only):
+      - Human personality is complex; contradictory traits CAN coexist
+      - ✅ BUT this requires STRONG evidence for BOTH traits (5+ evidence each)
+      - ✅ AND there must be clear context explaining the coexistence
+      - ❌ This should be RARE - do NOT use this as default behavior
+      - ❌ Most conflicts should be resolved via DELETE/UPDATE, not coexistence
+      - Example: "内向" (5 evidence in work context) + "外向" (5 evidence in family context) = valid coexistence
+      - Counter-example: "细心" (8 evidence) + "粗心" (1 criticism) = NOT valid coexistence, reduce degree or skip
+
+   **Degree reasonableness rules**:
+   - degree 1-2: Weak trait, 1-2 evidence is sufficient
+   - degree 3: Moderate trait, need 3-5 evidence
+   - degree 4: Strong trait, need 5-8 evidence
+   - degree 5: Very strong trait, need 8+ evidence
+   - ❌ Single incident should NOT result in degree 4-5
+   - ✅ Consider both quantity and quality of evidence
+
 ## Examples
 
 ### Example 1: Add new interest
@@ -525,6 +570,106 @@ Output:
 }}
 ```
 Note: Backend will preserve mother. Do NOT return mother here.
+
+### Example 6: Personality conflict - Insufficient evidence, SKIP conflicting trait (❗Language consistency)
+Extracted: User says "我今天被领导批评了，说我粗枝大叶"
+Existing: {{
+    "personality": [
+        {{"id": "1", "name": "认真负责", "degree": 4, "evidence": [
+            {{"text": "工作从不马虎", "timestamp": "2025-09-01T10:00:00Z"}},
+            {{"text": "每次任务都提前完成", "timestamp": "2025-09-05T14:00:00Z"}},
+            {{"text": "同事都说我很靠谱", "timestamp": "2025-09-10T16:00:00Z"}},
+            {{"text": "项目验收零缺陷", "timestamp": "2025-09-15T11:00:00Z"}}
+        ]}},
+        {{"id": "2", "name": "专注", "degree": 4, "evidence": [...]}}
+    ]
+}}
+Analysis:
+- "粗枝大叶" conflicts with "认真负责"
+- New evidence: Only 1 single incident (领导批评)
+- Existing evidence: 4 strong evidence for "认真负责"
+- Decision: SKIP - single criticism insufficient to override strong existing trait
+- Degree would be unreasonable: 1 evidence cannot support degree 4-5
+Output:
+```json
+{{
+    "additional_profile": {{}}
+}}
+```
+Note: If there were 3+ criticisms, could add with degree 2-3 or UPDATE "认真负责" to lower degree.
+
+### Example 7: Personality conflict - Real change, DELETE old and ADD new (❗Language consistency)
+Extracted: User says "我现在变得很外向了，经常主动社交" + 5 more recent evidence
+Existing: {{
+    "personality": [
+        {{"id": "3", "name": "内向", "degree": 4, "evidence": [
+            {{"text": "不喜欢参加聚会", "timestamp": "2024-01-15T10:00:00Z"}},
+            {{"text": "更喜欢独处", "timestamp": "2024-02-20T14:00:00Z"}},
+            {{"text": "社交让我很累", "timestamp": "2024-03-10T16:00:00Z"}}
+        ]}}
+    ]
+}}
+Analysis:
+- "外向" conflicts with "内向"
+- New evidence: 6 entries, all recent (within 3 months)
+- Old evidence: 3 entries, all old (8-10 months ago)
+- Decision: Real personality change → DELETE old, ADD new
+Output:
+```json
+{{
+    "additional_profile": {{
+        "personality": [
+            {{
+                "id": "3",
+                "event": "DELETE",
+                "name": "内向"
+            }},
+            {{
+                "id": null,
+                "event": "ADD",
+                "name": "外向",
+                "degree": 4,
+                "evidence": [
+                    {{"text": "我现在变得很外向了，经常主动社交"}},
+                    {{"text": "周末参加了三场聚会"}},
+                    {{"text": "主动组织团队活动"}},
+                    {{"text": "认识了很多新朋友"}},
+                    {{"text": "享受社交带来的快乐"}},
+                    {{"text": "同事说我判若两人"}}
+                ]
+            }}
+        ]
+    }}
+}}
+```
+
+### Example 8: Personality conflict - Complex human nature, RARE valid coexistence (❗Language consistency)
+Extracted: User says "在家里我很外向，和家人有说不完的话"
+Existing: {{
+    "personality": [
+        {{"id": "4", "name": "内向", "degree": 4, "evidence": [
+            {{"text": "在公司不爱说话", "timestamp": "2025-09-01T10:00:00Z"}},
+            {{"text": "同事聚餐总是安静听别人说", "timestamp": "2025-09-05T14:00:00Z"}},
+            {{"text": "开会时很少主动发言", "timestamp": "2025-09-10T16:00:00Z"}},
+            {{"text": "领导说我太安静", "timestamp": "2025-09-15T11:00:00Z"}},
+            {{"text": "不喜欢office闲聊", "timestamp": "2025-09-20T09:00:00Z"}}
+        ]}}
+    ]
+}}
+Analysis:
+- "外向" conflicts with "内向" in general
+- BUT: Context differs - work vs family
+- Existing "内向": 5 evidence, all in work context
+- New "外向": Would need 5+ evidence in family context to justify coexistence
+- Current new evidence: Only 1 evidence
+- Decision: SKIP for now - need more evidence to establish valid coexistence
+Output:
+```json
+{{
+    "additional_profile": {{}}
+}}
+```
+Note: If there were 5+ family context evidence showing 外向 behavior, then ADD would be valid as a RARE case of context-dependent personality traits. But this requires substantial evidence for BOTH traits in different contexts.
 
 ---
 

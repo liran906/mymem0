@@ -279,6 +279,39 @@
 - name 字段只填具体名字，未提及则为 null（不用关系词填充）
 - social_context 使用深度合并策略，保留所有现有关系
 
+- [x] **语言一致性修复** (commit: dab1f7f)
+  - [x] 问题：LLM 将中文翻译成英文（"退休了" → "retired", "设计师" → "designer"）
+  - [x] 解决：强化 EXTRACT_PROFILE_PROMPT Rule 1 语言一致性规则
+    - 添加 ❗CRITICAL 标记
+    - 添加明确的 WRONG/CORRECT 示例
+    - 将所有示例改为中文
+  - [x] 状态：已提交，等待用户测试验证
+
+- [x] **Personality 冲突检测机制** (P1 优先级 - 2025-10-05)
+  - [x] 问题：LLM 不检测语义冲突，导致矛盾特质并存（如"认真负责" + "粗枝大叶"）
+  - [x] 解决：在 UPDATE_PROFILE_PROMPT 中添加 Rule 9 - 冲突检测和 degree 合理性
+  - [x] 更新 `mem0/user_profile/prompts.py`
+    - 添加 Rule 9: Personality 冲突检测和 degree 合理性规则
+    - 添加 4 种冲突处理场景（SKIP/UPDATE/DELETE/COEXIST）
+    - 添加 3 个示例（场景6-8）
+    - degree 合理性规则（基于 evidence 数量）
+    - 复杂人性规则（RARE 情况，严格条件）
+  - [x] 创建测试 `test/test_personality_conflict.py`
+    - 场景1: 单次批评 vs 强 evidence → SKIP ✅
+    - 场景2: 适度冲突 → UPDATE 降低 degree ✅
+    - 场景3: 真实改变 → DELETE + ADD ✅
+    - 场景4: 复杂人性 evidence 不足 → SKIP ✅
+  - [x] 更新 `DEV_GUIDE_UserProfile.md`
+    - 添加 "Personality 冲突检测机制" 说明（第6条重要设计说明）
+    - 包含：问题背景、解决方案、4种冲突规则、degree 合理性规则、实现位置
+  - [x] 测试结果：✅ 全部通过
+
+**关键设计决策**（参见 discuss/33-34）:
+- 采用方案C：让 LLM 自己判断语义冲突（灵活，不需维护词表）
+- 复杂人性允许矛盾并存，但必须有充分证据支持（5+ evidence each）
+- 矛盾并存应该是**少数情况**，不能成为普遍现象
+- degree 必须与 evidence 数量匹配（degree 4-5 需要 5-8+ evidence）
+
 ---
 
 ## 备注
@@ -318,4 +351,4 @@
 
 ---
 
-最后更新：2025-10-04
+最后更新：2025-10-05

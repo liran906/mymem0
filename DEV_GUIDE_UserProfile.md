@@ -442,6 +442,43 @@ db.user_additional_profile.createIndex({ "personality.name": 1 });
    - friends 成员：`{"name": str|null, "info": [str]}`
    - others 成员：`{"name": str|null, "relation": str, "info": [str]}`
 
+6. **❗Personality 冲突检测机制**（CRITICAL - 2025-10-05 新增）：
+
+   **问题背景**：LLM 可能不检测语义冲突，导致矛盾特质并存（如："认真负责" degree=4 + "粗枝大叶" degree=4）
+
+   **解决方案**：在 UPDATE_PROFILE_PROMPT 中添加 Rule 9 - 冲突检测和 degree 合理性验证
+
+   **冲突检测规则**：
+
+   a. **不足证据的冲突 → SKIP**
+      - 示例：现有"认真负责" (degree 4, 4 evidence)，新增1次批评"粗枝大叶"
+      - 决策：SKIP - 单次事件不足以覆盖强 evidence
+
+   b. **适度冲突 → UPDATE降低degree**
+      - 示例：现有"认真负责" (degree 5)，新增3条"粗心"evidence
+      - 决策：UPDATE "认真负责" degree → 3
+
+   c. **真实改变 → DELETE old + ADD new**
+      - 示例：现有"内向" (旧 evidence 1年前)，新增6条"外向" evidence (近3个月)
+      - 决策：DELETE "内向"，ADD "外向"
+
+   d. **复杂人性 - 矛盾并存**（RARE，严格条件）：
+      - ✅ 允许：双方都有5+ evidence，且有明确情境区分（如工作vs家庭）
+      - ❌ 不允许：证据不足或无情境区分
+      - 示例：work context "内向" (5 evidence) + family context "外向" (5 evidence) = 合理并存
+
+   **Degree 合理性规则**：
+   - degree 1-2: 1-2 evidence 足够
+   - degree 3: 需要 3-5 evidence
+   - degree 4: 需要 5-8 evidence
+   - degree 5: 需要 8+ evidence
+   - ❌ 单次事件不应产生 degree 4-5
+
+   **实现位置**：
+   - Prompt: `mem0/user_profile/prompts.py` - UPDATE_PROFILE_PROMPT Rule 9
+   - 测试: `test/test_personality_conflict.py` - 4个场景测试
+   - 详见: `discuss/34-personality_conflict_implemented.md`
+
 **用户画像调整指南**：
 
 如果未来需要调整用户画像（从"小孩"变为"成年人"），需要修改以下文件：
