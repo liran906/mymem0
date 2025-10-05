@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: ankane/pgvector:v0.5.1
@@ -17,15 +15,30 @@ services:
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+
+  mongodb:
+    image: mongo:7.0
+    container_name: mem0-mongodb
+    restart: on-failure
+    networks:
+      - mem0_network
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongo
+      - MONGO_INITDB_ROOT_PASSWORD=mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - mongodb_data:/data/db
 
   mem0-service:
     image: mem0-service:amd64
     restart: unless-stopped
     container_name: mem0-api
     ports:
-      - "8000:8000"
+      - "18088:8000"
     environment:
       # 在服务器上设置这些环境变量
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
@@ -40,6 +53,12 @@ services:
       - POSTGRES_COLLECTION=memories
       - EMBEDDING_MODEL_DIMS=1536
 
+      # MongoDB配置
+      - MONGODB_URI=mongodb://mongo:mongo@mongodb:27017/
+      - MONGODB_DATABASE=mem0
+      - HISTORY_DB_PATH=/app/history/history.db
+      - EMBEDDING_MODEL_DIMS=1536
+
       # 其他配置
       - HISTORY_DB_PATH=/app/history/history.db
     volumes:
@@ -47,11 +66,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - mem0_network
 
 volumes:
   postgres_data:
+    driver: local
+  mongodb_data:
     driver: local
 
 networks:
