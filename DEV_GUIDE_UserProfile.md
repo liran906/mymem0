@@ -270,44 +270,91 @@ CREATE TRIGGER update_user_profile_updated_at
         }
     ],
 
-    // 社交关系
+    // 社交关系（使用深度合并策略，保留所有现有关系）
     "social_context": {
+        // family: 直系亲属 ONLY（单个对象或数组）
         "family": {
+            // 核心关系（单个对象）
             "father": {
-                "name": "John",
-                "career": "doctor",
-                "info": ["kind and loving", "plays football"]
+                "name": "John",  // 具体名字，未提及则为 null（❌ 不要用 "father" 填充）
+                "info": ["doctor", "kind and loving", "plays football"]
             },
             "mother": {
-                "name": "Mary",
-                "career": "teacher",
-                "info": ["strict", "cooks delicious meals"]
-            }
+                "name": null,  // 名字未提及
+                "info": ["teacher", "strict", "cooks delicious meals"]
+            },
+
+            // 配偶（单个对象）
+            "spouse": {
+                "name": "小芳",
+                "info": ["designer", "married 7 years"]
+            },
+
+            // 祖辈（单个对象）
+            "grandfather_paternal": {
+                "name": null,
+                "info": ["retired", "lives in hometown"]
+            },
+
+            // 兄弟姐妹（数组，可多个）
+            "brother": [
+                {
+                    "name": "Tom",
+                    "info": ["older brother", "engineer", "lives in Beijing"]
+                }
+            ],
+            "sister": [
+                {
+                    "name": null,
+                    "info": ["younger sister", "student"]
+                }
+            ],
+
+            // 子女（数组，可多个）
+            "daughter": [
+                {
+                    "name": "小静静",
+                    "info": ["three years old", "very cute"]
+                }
+            ]
+
+            // 允许的 family 关系（详见 mem0/user_profile/user_profile_schema.py）：
+            // - Core: father, mother
+            // - Common: brother, sister, grandfather_paternal, grandmother_paternal,
+            //           grandfather_maternal, grandmother_maternal
+            // - Extended: spouse, son, daughter, grandson, granddaughter
+            //
+            // ❗ 旁系亲属（uncle/aunt/cousin）放到 "others"，不在 family
         },
+
+        // friends: 朋友关系（数组）
         "friends": [
             {
                 "name": "Amy",
-                "info": ["kind and loving", "plays football"]
+                "info": ["classmate", "plays football"]
             },
             {
-                "name": "Bob",
-                "info": ["fair", "good at drawing"]
-            },
-            {
-                "name": "Charlie",
-                "info": ["friendly", "likes movies"]
+                "name": null,  // 名字未提及
+                "info": ["good friend", "likes movies"]
             }
         ],
+
+        // others: 其他社交关系（旁系亲属、同事、老师、邻居等）
         "others": [
             {
-                "name": "Jack",
-                "relation": "brother",  // teacher, relative, sibling, neighbor, etc.
-                "info": ["plays basketball", "likes movies"]
+                "name": null,
+                "relation": "uncle",  // 叔叔/舅舅/姑父等
+                "info": ["engineer", "very kind"]
             },
             {
-                "name": "Lisa",
-                "relation": "neighbor",
-                "info": ["has a dog", "friendly"]
+                "name": "李老师",
+                "relation": "teacher",
+                "info": ["teaches math", "very patient"]
+            },
+            {
+                "name": null,
+                "relation": "colleague",
+                "info": ["frontend engineer", "helpful"]
             }
         ]
     },
@@ -340,12 +387,73 @@ db.user_additional_profile.createIndex({ "personality.name": 1 });
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | string | 唯一标识（整数字符串，如 "0", "1"） |
-| name | string | 名称（中文） |
+| id | string | 唯一标识（UUID） |
+| name | string | 名称 |
 | degree | int (1-5) | 程度（兴趣=喜好程度，技能=掌握程度，性格=明显程度） |
 | evidence | array | 证据列表 |
 | evidence[].text | string | 证据描述（简短，1-2句话） |
 | evidence[].timestamp | ISO8601 | 时间戳 |
+
+**social_context 字段说明**：
+
+| 字段 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| **family** | object | 直系亲属（immediate relatives ONLY） | - |
+| family.father | object | 父亲（单个） | `{"name": "李明", "info": ["engineer"]}` |
+| family.mother | object | 母亲（单个） | `{"name": null, "info": ["teacher"]}` |
+| family.spouse | object | 配偶（单个） | `{"name": "小芳", "info": ["designer"]}` |
+| family.brother | array | 兄弟（可多个） | `[{"name": "Tom", "info": ["older"]}]` |
+| family.sister | array | 姐妹（可多个） | `[{"name": null, "info": ["younger"]}]` |
+| family.son | array | 儿子（可多个） | - |
+| family.daughter | array | 女儿（可多个） | - |
+| family.grandfather_* | object | 祖父（paternal/maternal） | - |
+| family.grandmother_* | object | 祖母（paternal/maternal） | - |
+| **friends** | array | 朋友列表 | - |
+| friends[].name | string\|null | 名字（未提及则 null） | "Amy" 或 null |
+| friends[].info | array<string> | 相关信息 | `["classmate", "kind"]` |
+| **others** | array | 其他社交关系（旁系亲属、同事等） | - |
+| others[].name | string\|null | 名字（未提及则 null） | "李老师" 或 null |
+| others[].relation | string | 关系类型（**必需**） | "uncle", "teacher", "colleague" |
+| others[].info | array<string> | 相关信息 | `["engineer", "kind"]` |
+
+**重要设计说明**：
+
+1. **name 字段规则**：
+   - ✅ 只填具体名字（如 "小芳"、"李明"）
+   - ✅ 未提及则设为 `null`
+   - ❌ **不要**用关系词填充（如 "妻子"、"父亲"）
+
+2. **family 关系分类**（基于当前用户画像：小孩）：
+   - **Core**: father, mother
+   - **Common**: brother, sister, grandfather_paternal, grandmother_paternal, grandfather_maternal, grandmother_maternal
+   - **Extended**: spouse, son, daughter, grandson, granddaughter
+
+3. **旁系亲属处理**：
+   - ❌ **不要**放在 family（如 uncle/aunt/cousin）
+   - ✅ 放在 **others** 中，使用 relation 字段区分（如 "叔叔" vs "舅舅" vs "姑父"）
+
+4. **深度合并策略**（CRITICAL）：
+   - social_context 使用**深度合并**，不是覆盖
+   - 添加新关系（如 spouse）时，**保留**现有关系（如 father/mother）
+   - 详见 `mem0/user_profile/profile_manager.py::_deep_merge_social_context()`
+
+5. **字段格式统一**：
+   - family 成员：`{"name": str|null, "info": [str]}`
+   - friends 成员：`{"name": str|null, "info": [str]}`
+   - others 成员：`{"name": str|null, "relation": str, "info": [str]}`
+
+**用户画像调整指南**：
+
+如果未来需要调整用户画像（从"小孩"变为"成年人"），需要修改以下文件：
+
+1. `mem0/user_profile/user_profile_schema.py` - `FAMILY_RELATIONS` 定义
+2. `mem0/user_profile/prompts.py` - extraction prompt 中的允许关系列表和示例
+3. `DEV_GUIDE_UserProfile.md` - 本文档的 family 关系分类说明
+
+成年人用户画像的关系分类示例：
+- **Core**: spouse
+- **Common**: father, mother, son, daughter
+- **Extended**: brother, sister, grandfather_*, grandmother_*, grandson, granddaughter
 
 ---
 

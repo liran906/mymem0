@@ -58,14 +58,18 @@ Return a JSON object with this structure:
             "family": {{
                 "father": {{
                     "name": "John",
-                    "career": "doctor",
-                    "info": ["kind and loving", "plays football"]
+                    "info": ["doctor", "kind and loving", "plays football"]
                 }},
                 "mother": {{
                     "name": "Mary",
-                    "career": "teacher",
-                    "info": ["strict", "cooks delicious meals"]
-                }}
+                    "info": ["teacher", "strict", "cooks delicious meals"]
+                }},
+                "brother": [
+                    {{
+                        "name": "Tom",
+                        "info": ["older brother", "engineer"]
+                    }}
+                ]
             }},
             "friends": [
                 {{
@@ -73,7 +77,7 @@ Return a JSON object with this structure:
                     "info": ["plays basketball", "likes movies"]
                 }},
                 {{
-                    "name": "Tom",
+                    "name": null,
                     "info": ["classmate", "studies together"]
                 }}
             ],
@@ -84,9 +88,9 @@ Return a JSON object with this structure:
                     "info": ["teaches math", "very patient"]
                 }},
                 {{
-                    "name": "Lisa",
-                    "relation": "neighbor",
-                    "info": ["has a dog", "friendly"]
+                    "name": null,
+                    "relation": "uncle",
+                    "info": ["lives in Beijing", "very humorous"]
                 }}
             ]
         }},
@@ -113,16 +117,44 @@ Return a JSON object with this structure:
    - For personality: 1=not obvious, 2=weak, 3=moderate, 4=strong, 5=very strong
 
 4. **social_context extraction**: Extract user's mentioned social relationships
-   - family: Parent information - extract when user mentions father/mother (name, career, info)
-   - friends: Friend information - extract when user mentions friends (name, info)
-     * NO relation field needed for friends (they are all friends)
-   - others: Other relations - extract when user mentions teachers, siblings, relatives, neighbors, etc.
-     * MUST include name, relation, and info
-     * Examples: siblings (哥哥/弟弟/姐姐/妹妹), teachers (老师), relatives (亲戚), neighbors (邻居)
-   - Structure: nested object (NOT array)
-     * family: Object with father/mother keys (NO siblings - siblings go to "others")
-     * friends: Array of objects
-     * others: Array of objects
+
+   **Field Structure**:
+   - family: Direct family members ONLY (immediate relatives)
+     * Fields: {{ "name": str|null, "info": [str] }}
+     * Single members: father, mother, spouse, grandfather_*, grandmother_*
+     * Multiple members (arrays): brother, sister, son, daughter, grandson, granddaughter
+
+   - friends: Friend information
+     * Fields: {{ "name": str|null, "info": [str] }}
+     * Array of objects
+     * NO relation field needed (they are all friends)
+
+   - others: Other social relations (collateral relatives, teachers, colleagues, neighbors, etc.)
+     * Fields: {{ "name": str|null, "relation": str (required), "info": [str] }}
+     * Array of objects
+     * Examples: uncle (叔叔/舅舅/姑父), aunt (姑姑/阿姨/舅妈), cousin (表哥/堂妹), teacher (老师), colleague (同事), neighbor (邻居)
+
+   **Allowed family relations** (ONLY use these, DO NOT create new relations):
+   - Core: father, mother
+   - Common: brother, sister, grandfather_paternal, grandmother_paternal, grandfather_maternal, grandmother_maternal
+   - Extended: spouse, son, daughter, grandson, granddaughter
+
+   **CRITICAL Rules**:
+   - ❗ name field: ONLY fill with actual name (e.g., "小芳"). If name not mentioned, set to null
+     * ❌ WRONG: {{"name": "妻子"}} (this is relation, not name)
+     * ✅ CORRECT: {{"name": "小芳"}} or {{"name": null}}
+
+   - ❗ Collateral relatives (uncle/aunt/cousin) → Put in "others", NOT in "family"
+     * Reason: Need "relation" field to distinguish (e.g., "姑姑" vs "阿姨")
+
+   - ❗ Unified field format:
+     * family members: ONLY {{ "name", "info" }} - NO career or other fields
+     * friends: ONLY {{ "name", "info" }}
+     * others: {{ "name", "relation", "info" }}
+
+   - ❗ Use standardized relation names:
+     * Spouse: Use "spouse" (NOT "wife" or "husband")
+     * Siblings: Use "brother" or "sister" (NOT "sibling")
 
 5. **learning_preferences extraction**: Extract learning preferences when mentioned
    - preferred_time: When user prefers to study - extract from mentions like "晚上学习", "早上效率高" → "morning" / "afternoon" / "evening"
@@ -173,9 +205,9 @@ Output:
 }}
 ```
 
-### Example 3: Social context (family and friends)
+### Example 3: Social context - name field rules
 Messages:
-- User: "我爸爸是医生，我妈妈是老师"
+- User: "我爸爸叫李明，是医生。我妈妈是老师"
 - User: "我有个好朋友Jack，他喜欢打篮球"
 
 Output:
@@ -185,10 +217,12 @@ Output:
         "social_context": {{
             "family": {{
                 "father": {{
-                    "career": "doctor"
+                    "name": "李明",
+                    "info": ["doctor"]
                 }},
                 "mother": {{
-                    "career": "teacher"
+                    "name": null,
+                    "info": ["teacher"]
                 }}
             }},
             "friends": [
@@ -197,6 +231,66 @@ Output:
                     "info": ["likes basketball"]
                 }}
             ]
+        }}
+    }}
+}}
+```
+
+### Example 4: Social context - collateral relatives go to others
+Messages:
+- User: "我有两个哥哥，大哥叫小明，在北京工作"
+- User: "我舅舅是工程师，对我很好"
+
+Output:
+```json
+{{
+    "additional_profile": {{
+        "social_context": {{
+            "family": {{
+                "brother": [
+                    {{
+                        "name": "小明",
+                        "info": ["older brother", "works in Beijing"]
+                    }},
+                    {{
+                        "name": null,
+                        "info": ["older brother"]
+                    }}
+                ]
+            }},
+            "others": [
+                {{
+                    "name": null,
+                    "relation": "uncle",
+                    "info": ["engineer", "very kind to me"]
+                }}
+            ]
+        }}
+    }}
+}}
+```
+
+### Example 5: Social context - spouse and children
+Messages:
+- User: "我老婆叫小芳，是设计师。我们有个女儿叫小静静，今年三岁"
+
+Output:
+```json
+{{
+    "additional_profile": {{
+        "social_context": {{
+            "family": {{
+                "spouse": {{
+                    "name": "小芳",
+                    "info": ["designer"]
+                }},
+                "daughter": [
+                    {{
+                        "name": "小静静",
+                        "info": ["three years old"]
+                    }}
+                ]
+            }}
         }}
     }}
 }}
@@ -290,6 +384,23 @@ For each item in the extracted information, decide one of the following operatio
 
 7. **Evidence consolidation**: Return only NEW evidence to add - the backend will merge with existing evidence
 
+8. **social_context special handling** - CRITICAL for preserving existing relationships:
+   - ❗ social_context uses **DEEP MERGE**, NOT overwrite
+   - When adding/updating a relationship, preserve ALL other existing relationships
+   - Example: If existing has father/mother, and new info mentions spouse → ADD spouse, KEEP father/mother
+   - ❌ WRONG: Return only spouse (will lose father/mother)
+   - ✅ CORRECT: Return ADD operation for spouse only, backend will merge
+
+   **For social_context operations**:
+   - Return only the relationships that are mentioned in new messages
+   - Use ADD/UPDATE/DELETE events for individual relationships
+   - Backend will merge with existing data, preserving unmentioned relationships
+
+   **social_context event types**:
+   - ADD: Add new relationship (e.g., add spouse when only father/mother exist)
+   - UPDATE: Update existing relationship info (e.g., add new info about existing father)
+   - DELETE: Remove relationship (only when explicitly stated)
+
 ## Examples
 
 ### Example 1: Add new interest
@@ -350,6 +461,64 @@ Output:
     }}
 }}
 ```
+
+### Example 4: social_context deep merge - ADD new relationship
+Extracted: User says "我老婆叫小芳，是设计师"
+Existing: {{
+    "social_context": {{
+        "family": {{
+            "father": {{"name": null, "info": ["retired"]}},
+            "mother": {{"name": null, "info": ["retired"]}}
+        }}
+    }}
+}}
+Analysis: New spouse info, existing father/mother should be preserved
+Output:
+```json
+{{
+    "additional_profile": {{
+        "social_context": {{
+            "family": {{
+                "spouse": {{
+                    "event": "ADD",
+                    "name": "小芳",
+                    "info": ["designer"]
+                }}
+            }}
+        }}
+    }}
+}}
+```
+Note: Backend will merge this with existing father/mother. Do NOT return father/mother here.
+
+### Example 5: social_context deep merge - UPDATE existing relationship
+Extracted: User says "我爸爸身体很好"
+Existing: {{
+    "social_context": {{
+        "family": {{
+            "father": {{"name": "李明", "info": ["retired"]}},
+            "mother": {{"name": null, "info": ["retired"]}}
+        }}
+    }}
+}}
+Analysis: Update father's info, preserve mother
+Output:
+```json
+{{
+    "additional_profile": {{
+        "social_context": {{
+            "family": {{
+                "father": {{
+                    "event": "UPDATE",
+                    "name": "李明",
+                    "info": ["retired", "healthy"]
+                }}
+            }}
+        }}
+    }}
+}}
+```
+Note: Backend will preserve mother. Do NOT return mother here.
 
 ---
 

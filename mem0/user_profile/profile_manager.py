@@ -23,6 +23,14 @@ from mem0.user_profile.utils import (
     validate_degree,
     format_messages_for_llm,
 )
+from mem0.user_profile.user_profile_schema import (
+    validate_family_relation,
+    validate_relation_structure,
+    validate_friends_structure,
+    validate_others_structure,
+    ARRAY_RELATIONS,
+    SINGLE_RELATIONS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +175,168 @@ class ProfileManager:
                 return obj
 
         return clean_item(field_value)
+
+    def _deep_merge_social_context(
+        self,
+        existing: Dict[str, Any],
+        new_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Deep merge social_context, preserving existing relationships
+
+        Args:
+            existing: Existing social_context from database
+            new_data: New social_context from LLM (may contain ADD/UPDATE/DELETE events)
+
+        Returns:
+            Merged social_context
+        """
+        # Start with copy of existing data
+        merged = existing.copy() if existing else {}
+
+        # Process family relationships
+        if "family" in new_data:
+            if "family" not in merged:
+                merged["family"] = {}
+
+            for relation_key, relation_value in new_data["family"].items():
+                # Validate family relation
+                validation = validate_family_relation(relation_key)
+                if not validation["valid"]:
+                    logger.warning(f"Invalid family relation '{relation_key}': {validation['warning']}")
+                    if validation["suggestion"] and validation["suggestion"] != "others":
+                        # Auto-correct typo
+                        logger.info(f"Auto-correcting '{relation_key}' to '{validation['suggestion']}'")
+                        relation_key = validation["suggestion"]
+                    else:
+                        # Skip invalid relation
+                        logger.warning(f"Skipping invalid relation: {relation_key}")
+                        continue
+                elif validation["warning"]:
+                    logger.info(validation["warning"])
+
+                # Check if this is an array relation (brother/sister/daughter/son/etc.)
+                is_array_relation = relation_key in ARRAY_RELATIONS
+
+                # Handle event-based operations for single object
+                if isinstance(relation_value, dict) and "event" in relation_value:
+                    event = relation_value["event"]
+
+                    if event == "ADD":
+                        # Add new relationship
+                        cleaned = {k: v for k, v in relation_value.items() if k not in ["event", "id"]}
+                        if is_array_relation:
+                            # For array relations, append to existing array
+                            if relation_key not in merged["family"]:
+                                merged["family"][relation_key] = []
+                            merged["family"][relation_key].append(cleaned)
+                        else:
+                            # For single relations, direct set
+                            merged["family"][relation_key] = cleaned
+                        logger.info(f"Added new family relationship: {relation_key}")
+
+                    elif event == "UPDATE":
+                        # Update existing relationship
+                        cleaned = {k: v for k, v in relation_value.items() if k not in ["event", "id"]}
+                        if is_array_relation:
+                            # For array relations, update existing item or add if not exists
+                            if relation_key not in merged["family"]:
+                                merged["family"][relation_key] = []
+                            # Try to find existing item by name
+                            name_to_update = cleaned.get("name")
+                            found = False
+                            if name_to_update:
+                                for item in merged["family"][relation_key]:
+                                    if item.get("name") == name_to_update:
+                                        # Merge info
+                                        existing_info = item.get("info", [])
+                                        new_info = cleaned.get("info", [])
+                                        combined_info = existing_info.copy()
+                                        for info_item in new_info:
+                                            if info_item not in combined_info:
+                                                combined_info.append(info_item)
+                                        item["info"] = combined_info
+                                        found = True
+                                        break
+                            if not found:
+                                # Not found, add as new
+                                merged["family"][relation_key].append(cleaned)
+                        else:
+                            # For single relations
+                            if relation_key in merged["family"]:
+                                # Merge info arrays
+                                existing_info = merged["family"][relation_key].get("info", [])
+                                new_info = cleaned.get("info", [])
+                                # Combine and deduplicate info
+                                combined_info = existing_info.copy()
+                                for info_item in new_info:
+                                    if info_item not in combined_info:
+                                        combined_info.append(info_item)
+                                cleaned["info"] = combined_info
+                                # Update name if provided
+                                if cleaned.get("name") is not None:
+                                    merged["family"][relation_key]["name"] = cleaned["name"]
+                                else:
+                                    # Keep existing name if new name is null
+                                    if "name" in merged["family"][relation_key]:
+                                        cleaned["name"] = merged["family"][relation_key]["name"]
+                                merged["family"][relation_key] = cleaned
+                            else:
+                                # Relation doesn't exist, treat as ADD
+                                merged["family"][relation_key] = cleaned
+                        logger.info(f"Updated family relationship: {relation_key}")
+
+                    elif event == "DELETE":
+                        # Delete relationship
+                        if relation_key in merged["family"]:
+                            del merged["family"][relation_key]
+                            logger.info(f"Deleted family relationship: {relation_key}")
+                # Handle array value (for array relations like brother, sister, daughter)
+                elif isinstance(relation_value, list):
+                    # Clean each item in the array
+                    cleaned_array = []
+                    for item in relation_value:
+                        if isinstance(item, dict):
+                            cleaned_item = {k: v for k, v in item.items() if k not in ["event", "id"]}
+                            cleaned_array.append(cleaned_item)
+                        else:
+                            cleaned_array.append(item)
+                    merged["family"][relation_key] = cleaned_array
+                    logger.info(f"Set family relationship array: {relation_key} ({len(cleaned_array)} items)")
+                else:
+                    # No event, single object, direct replacement (backward compatibility)
+                    merged["family"][relation_key] = relation_value
+                    logger.info(f"Set family relationship (no event): {relation_key}")
+
+        # Process friends (array, direct merge)
+        if "friends" in new_data:
+            if "friends" not in merged:
+                merged["friends"] = []
+
+            # Validate structure
+            validation = validate_friends_structure(new_data["friends"])
+            if not validation["valid"]:
+                logger.warning(f"Invalid friends structure: {validation['errors']}")
+            else:
+                # Append new friends to existing
+                merged["friends"].extend(new_data["friends"])
+                logger.info(f"Added {len(new_data['friends'])} friends")
+
+        # Process others (array, direct merge)
+        if "others" in new_data:
+            if "others" not in merged:
+                merged["others"] = []
+
+            # Validate structure
+            validation = validate_others_structure(new_data["others"])
+            if not validation["valid"]:
+                logger.warning(f"Invalid others structure: {validation['errors']}")
+            else:
+                # Append new others to existing
+                merged["others"].extend(new_data["others"])
+                logger.info(f"Added {len(new_data['others'])} other relationships")
+
+        return merged
 
     def extract_profile(self, messages: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
         """
@@ -348,13 +518,21 @@ class ProfileManager:
 
                 # Process each field
                 for field_name, field_value in additional_profile.items():
-                    # Handle object fields (social_context, learning_preferences)
+                    # Handle social_context with deep merge
+                    if field_name == "social_context" and isinstance(field_value, dict):
+                        existing_social_context = current_profile.get("social_context", {})
+                        merged_social_context = self._deep_merge_social_context(
+                            existing_social_context,
+                            field_value
+                        )
+                        current_profile["social_context"] = merged_social_context
+                        result["operations_performed"]["updated"] += 1
+                        logger.info("Updated social_context (deep merge)")
+                        continue
+
+                    # Handle other object fields (learning_preferences)
                     # These are direct replacements, no ADD/UPDATE/DELETE events
-                    if isinstance(field_value, dict) and (
-                        "family" in field_value
-                        or "friends" in field_value
-                        or "preferred_time" in field_value
-                    ):
+                    if isinstance(field_value, dict) and "preferred_time" in field_value:
                         # Clean object fields: remove id, event, evidence (these are for list-based fields only)
                         cleaned_value = self._clean_object_field(field_value)
                         current_profile[field_name] = cleaned_value

@@ -244,6 +244,41 @@
 - [x] 基于证据的画像更新机制
 - [x] FastAPI 路由集成
 
+### UserProfile 修复和优化（2025-10-05）
+- [x] **social_context 覆盖问题修复** - 关键 bug 修复
+  - [x] 问题：添加 spouse/daughter 时，原有 father/mother 数据丢失
+  - [x] 创建 `mem0/user_profile/user_profile_schema.py`
+    - 定义 FAMILY_RELATIONS（core/common/extended）
+    - 实现字段验证函数（validate_family_relation, validate_relation_structure）
+    - 添加 typo 自动修正功能
+  - [x] 更新 `mem0/user_profile/prompts.py`
+    - 调整 extraction prompt 的 social_context 规则
+    - 添加 name 字段填充规则示例
+    - 添加旁系亲属处理示例（uncle/aunt/cousin → others）
+    - 添加 UPDATE_PROFILE_PROMPT 的深度合并说明
+  - [x] 修改 `mem0/user_profile/profile_manager.py`
+    - 实现 `_deep_merge_social_context()` 方法
+    - 支持 ADD/UPDATE/DELETE 事件处理
+    - 区分单个关系和数组关系（brother/sister/daughter等）
+    - 集成字段验证逻辑
+  - [x] 编写测试脚本 `test_social_context_merge.py`
+    - 验证 father/mother 不会被覆盖
+    - 验证 name 字段正确填充（不用关系词填充）
+    - 测试结果：✅ 全部通过
+  - [x] 更新 `DEV_GUIDE_UserProfile.md`
+    - 更新 social_context Schema 说明
+    - 添加 family 关系分类说明（core/common/extended）
+    - 添加深度合并策略说明
+    - 添加用户画像调整指南（小孩↔成年人）
+    - 添加字段格式规范说明
+
+**关键设计决策**（参见 discuss/26-32）:
+- family 只包含直系亲属（father/mother/sibling/grandparent/spouse/child）
+- 旁系亲属（uncle/aunt/cousin）放到 others，使用 relation 字段区分
+- 字段统一为 `{name, info}`，不再使用 career 等特殊字段
+- name 字段只填具体名字，未提及则为 null（不用关系词填充）
+- social_context 使用深度合并策略，保留所有现有关系
+
 ---
 
 ## 备注
