@@ -174,6 +174,11 @@ CREATE TABLE user_profile.user_profile (
     timezone VARCHAR(50),
     language VARCHAR(50),
 
+    -- 教育信息（适用于儿童用户，3-9岁）
+    school_name VARCHAR(200),
+    grade VARCHAR(50),
+    class_name VARCHAR(50),
+
     -- 索引
     INDEX idx_user_id (user_id),
     INDEX idx_created_at (created_at)
@@ -209,6 +214,9 @@ CREATE TRIGGER update_user_profile_updated_at
 | current_city | VARCHAR(100) | 当前城市 | "Beijing" |
 | timezone | VARCHAR(50) | 时区 | "Asia/Shanghai" |
 | language | VARCHAR(50) | 主要语言 | "Chinese" |
+| school_name | VARCHAR(200) | 学校名称（儿童用户） | "北京实验小学" |
+| grade | VARCHAR(50) | 年级（支持中英文） | "三年级" / "Grade 3" |
+| class_name | VARCHAR(50) | 班级（可选） | "3班" / "Class 3A" |
 
 ---
 
@@ -990,7 +998,7 @@ GET /profile/missing-fields?user_id=u123&source=mongo
 
 **完整字段定义**：
 
-- **PostgreSQL (basic_info)**: name, nickname, english_name, birthday, gender, nationality, hometown, current_city, timezone, language
+- **PostgreSQL (basic_info)**: name, nickname, english_name, birthday, gender, nationality, hometown, current_city, timezone, language, school_name, grade, class_name
 - **MongoDB (additional_profile)**: interests, skills, personality, social_context, learning_preferences
 
 **响应示例**：

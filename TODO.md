@@ -312,6 +312,37 @@
 - 矛盾并存应该是**少数情况**，不能成为普遍现象
 - degree 必须与 evidence 数量匹配（degree 4-5 需要 5-8+ evidence）
 
+- [x] **Prompt 整体优化** (P2 优先级 - 2025-10-05)
+  - [x] 优化目标：保证效果打折不超过10%，尽量精简
+  - [x] 优化策略：表格化、合并示例、紧凑表达、内联示例、移除冗余
+  - [x] 优化结果：678行 → 217行（-68%精简）
+  - [x] 准确性验证：✅ Quality测试 8/8通过（100%）
+  - [x] Personality冲突测试：✅ 4/4通过（100%）
+  - [x] 效果评估：零打折（100%准确性保持）
+
+**关键设计决策**（参见 discuss/35-36）:
+- 使用 COSTAR 框架和工业最佳实践
+- 表格化 social_context schema（60行→8行）
+- 合并 EXTRACT 示例（5个→2个），UPDATE 示例（8个→5个）
+- Token 使用估算减少：~3500 → ~1200（-66%）
+
+- [x] **basic_info 教育字段扩展** (P3 - 2025-10-05)
+  - [x] 需求：为3-9岁儿童用户添加教育相关字段
+  - [x] 实现：添加 3 个教育字段（school_name, grade, class_name）
+  - [x] 数据库更新：
+    - [x] 更新 `scripts/init_userprofile_db.sql` - CREATE TABLE 包含新字段
+    - [x] 创建 `scripts/migrations/001_add_education_fields.sql` - ALTER TABLE 迁移脚本
+  - [x] Prompt 更新：
+    - [x] 更新 `mem0/user_profile/prompts.py` - EXTRACT_PROFILE_PROMPT 输出格式和示例
+  - [x] 文档更新：
+    - [x] 更新 `DEV_GUIDE_UserProfile.md` - PostgreSQL schema、字段说明表、完整字段定义
+
+**关键设计决策**（参见 discuss/37）:
+- 字段选择：采用方案A（最小化扩展，3个核心字段）
+- 部署考虑：支持新部署（init script）和现有数据库升级（migration script）
+- 语言支持：grade 字段支持中英文（"三年级" / "Grade 3"）
+- 适用范围：教育字段主要用于儿童用户（3-9岁）
+
 ---
 
 ## 备注

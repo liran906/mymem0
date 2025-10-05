@@ -7,7 +7,13 @@ EXTRACT_PROFILE_PROMPT = """Extract user profile from conversation. Return JSON 
 ## Output Format
 ```json
 {{
-  "basic_info": {{"name": "张三", "current_city": "上海"}},
+  "basic_info": {{
+    "name": "张三",
+    "current_city": "上海",
+    "school_name": "上海实验小学",
+    "grade": "三年级",
+    "class_name": "3班"
+  }},
   "additional_profile": {{
     "interests": [{{"name": "足球", "degree": 4, "evidence": [{{"text": "周末踢球很开心"}}]}}],
     "skills": [{{"name": "Python", "degree": 3, "evidence": [{{"text": "写了数据工具"}}]}}],
@@ -58,11 +64,17 @@ EXTRACT_PROFILE_PROMPT = """Extract user profile from conversation. Return JSON 
 
 ## Examples
 
-**Ex1: Basic + Interest**
-User: "我叫李明住杭州，最近迷上摄影，每周末拍照"
+**Ex1: Basic + Interest + Education**
+User: "我叫李明住杭州，在北京实验小学上三年级2班，最近迷上摄影，每周末拍照"
 ```json
 {{
-  "basic_info": {{"name": "李明", "current_city": "杭州"}},
+  "basic_info": {{
+    "name": "李明",
+    "current_city": "杭州",
+    "school_name": "北京实验小学",
+    "grade": "三年级",
+    "class_name": "2班"
+  }},
   "additional_profile": {{
     "interests": [{{"name": "摄影", "degree": 4, "evidence": [{{"text": "最近迷上摄影，每周末拍照"}}]}}]
   }}
