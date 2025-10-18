@@ -106,6 +106,14 @@ DEFAULT_CONFIG = {
 MEMORY_INSTANCE = Memory.from_config(DEFAULT_CONFIG)
 USER_PROFILE_INSTANCE = UserProfile(MEMORY_INSTANCE.config)
 
+# Initialize UserProfile databases (auto-create tables if not exist)
+try:
+    USER_PROFILE_INSTANCE.initialize_databases()
+    logger.info("UserProfile databases initialized (tables created if needed)")
+except Exception as e:
+    logger.warning(f"Failed to initialize UserProfile databases: {e}")
+    logger.warning("UserProfile tables may need to be created manually")
+
 logger.info("Mem0 Memory and UserProfile instances initialized successfully")
 logger.info(f"Logging level set to: {LOG_LEVEL}")
 
