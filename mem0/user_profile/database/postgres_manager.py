@@ -120,7 +120,10 @@ class PostgresManager:
             hometown VARCHAR(100),
             current_city VARCHAR(100),
             timezone VARCHAR(50),
-            language VARCHAR(50)
+            language VARCHAR(50),
+            school_name VARCHAR(200),
+            grade VARCHAR(50),
+            class_name VARCHAR(50)
         );
 
         CREATE INDEX IF NOT EXISTS idx_user_profile_name ON user_profile.user_profile(name);
@@ -265,7 +268,8 @@ class PostgresManager:
         # Define all expected basic_info fields (excluding system fields)
         ALL_FIELDS = [
             'name', 'nickname', 'english_name', 'birthday', 'gender',
-            'nationality', 'hometown', 'current_city', 'timezone', 'language'
+            'nationality', 'hometown', 'current_city', 'timezone', 'language',
+            'school_name', 'grade', 'class_name'
         ]
 
         try:

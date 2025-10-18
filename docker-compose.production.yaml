@@ -40,9 +40,11 @@ services:
     ports:
       - "18088:8000"
     environment:
-      # 在服务器上设置这些环境变量
+      # API Keys
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DOUBAO_API_KEY=${DOUBAO_API_KEY}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
 
       # PostgreSQL配置
       - POSTGRES_HOST=postgres
@@ -51,16 +53,15 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_COLLECTION=memories
-      - EMBEDDING_MODEL_DIMS=1536
 
       # MongoDB配置
       - MONGODB_URI=mongodb://mongo:mongo@mongodb:27017/
       - MONGODB_DATABASE=mem0
-      - HISTORY_DB_PATH=/app/history/history.db
-      - EMBEDDING_MODEL_DIMS=1536
 
       # 其他配置
       - HISTORY_DB_PATH=/app/history/history.db
+      - EMBEDDING_MODEL_DIMS=1536
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - ./history:/app/history
     depends_on:
