@@ -5,19 +5,59 @@ Tests the complete cold start flow:
 1. fetch_child_summary() HTTP client
 2. UserProfile._convert_palserver_data() data conversion
 3. UserProfile.get_profile() cold start integration
+
+Configuration (via environment variables):
+- USE_REAL_PALSERVER: Set to '1' to test against real PalServer (default: mock)
+- USE_REAL_POSTGRES: Set to '1' to test against real PostgreSQL (default: mock)
+- USE_REAL_MONGODB: Set to '1' to test against real MongoDB (default: mock)
+
+Examples:
+    # Use all mocks (default, fast)
+    python -m pytest test/test_palserver_integration.py -v
+
+    # Test real PalServer only
+    USE_REAL_PALSERVER=1 python -m pytest test/test_palserver_integration.py -v
+
+    # Test all real services
+    USE_REAL_PALSERVER=1 USE_REAL_POSTGRES=1 USE_REAL_MONGODB=1 python -m pytest test/test_palserver_integration.py -v
 """
 
+import os
 import unittest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
 from mem0.user_profile.palserver_client import fetch_child_summary
 
+# ============================================================================
+# Test Configuration (set via environment variables)
+# ============================================================================
+
+# Whether to use real services instead of mocks
+USE_REAL_PALSERVER = os.getenv("USE_REAL_PALSERVER", "0") == "1"
+USE_REAL_POSTGRES = os.getenv("USE_REAL_POSTGRES", "0") == "1"
+USE_REAL_MONGODB = os.getenv("USE_REAL_MONGODB", "0") == "1"
+
+# PalServer configuration (only used if USE_REAL_PALSERVER=1)
+PALSERVER_BASE_URL = os.getenv("PALSERVER_BASE_URL", "http://localhost:8099/pal")
+PALSERVER_TEST_CHILD_ID = os.getenv("PALSERVER_TEST_CHILD_ID", "12345")
+
+# Print configuration at import time
+if any([USE_REAL_PALSERVER, USE_REAL_POSTGRES, USE_REAL_MONGODB]):
+    print(f"\n{'='*70}")
+    print("Test Configuration:")
+    print(f"  USE_REAL_PALSERVER: {USE_REAL_PALSERVER} (URL: {PALSERVER_BASE_URL if USE_REAL_PALSERVER else 'N/A'})")
+    print(f"  USE_REAL_POSTGRES:  {USE_REAL_POSTGRES}")
+    print(f"  USE_REAL_MONGODB:   {USE_REAL_MONGODB}")
+    print(f"{'='*70}\n")
+
 
 class TestPalServerClient(unittest.TestCase):
-    """Test PalServer HTTP client"""
+    """Test PalServer HTTP client (mock tests, skipped if USE_REAL_PALSERVER=1)"""
 
     def setUp(self):
+        if USE_REAL_PALSERVER:
+            self.skipTest("Using real PalServer, skip mock tests")
         self.base_url = "http://localhost:8099/pal"
         self.child_id = "12345"
 
@@ -118,17 +158,22 @@ class TestDataConversion(unittest.TestCase):
     """Test PalServer data to MyMem0 format conversion"""
 
     def setUp(self):
-        """Create a mock UserProfile instance for testing conversion logic"""
+        """Create UserProfile instance for testing conversion logic"""
         from mem0.user_profile.main import UserProfile
+        from mem0.configs.base import MemoryConfig
 
-        # Create UserProfile instance with mocked database managers
-        with patch('mem0.user_profile.main.PostgresManager'), \
-             patch('mem0.user_profile.main.MongoDBManager'), \
-             patch('mem0.user_profile.main.LlmFactory'):
-
-            from mem0.configs.base import MemoryConfig
+        # Use real databases if configured, otherwise mock
+        if USE_REAL_POSTGRES and USE_REAL_MONGODB:
+            # Use real databases
             config = MemoryConfig()
             self.user_profile = UserProfile(config)
+        else:
+            # Use mocks (default for fast tests)
+            with patch('mem0.user_profile.main.PostgresManager'), \
+                 patch('mem0.user_profile.main.MongoDBManager'), \
+                 patch('mem0.user_profile.main.LlmFactory'):
+                config = MemoryConfig()
+                self.user_profile = UserProfile(config)
 
     def test_convert_full_data(self):
         """Test conversion with complete data"""
@@ -221,7 +266,11 @@ class TestDataConversion(unittest.TestCase):
 
 
 class TestColdStartIntegration(unittest.TestCase):
-    """Test end-to-end cold start integration"""
+    """Test end-to-end cold start integration (mock tests, skipped if using real services)"""
+
+    def setUp(self):
+        if USE_REAL_PALSERVER or USE_REAL_POSTGRES or USE_REAL_MONGODB:
+            self.skipTest("Using real services, skip mock integration tests (use TestRealDatabaseIntegration instead)")
 
     @patch('mem0.user_profile.main.LlmFactory')
     @patch('mem0.user_profile.main.MongoDBManager')
@@ -303,6 +352,74 @@ class TestColdStartIntegration(unittest.TestCase):
         self.assertEqual(result["user_id"], "12345")
         self.assertEqual(result["basic_info"], {})
         self.assertEqual(result["additional_profile"], {})
+
+
+class TestRealPalServer(unittest.TestCase):
+    """Test against real PalServer (only runs if USE_REAL_PALSERVER=1)"""
+
+    def setUp(self):
+        if not USE_REAL_PALSERVER:
+            self.skipTest("USE_REAL_PALSERVER not enabled")
+
+    def test_real_palserver_connection(self):
+        """Test fetching from real PalServer"""
+        result = fetch_child_summary(PALSERVER_TEST_CHILD_ID, PALSERVER_BASE_URL)
+
+        # Allow None (child not found) or dict (child found)
+        self.assertTrue(
+            result is None or isinstance(result, dict),
+            f"Expected None or dict, got {type(result)}"
+        )
+
+        # If data returned, validate structure
+        if result:
+            print(f"\n✓ PalServer returned data for child_id={PALSERVER_TEST_CHILD_ID}")
+            print(f"  Fields: {list(result.keys())}")
+
+            # Check expected fields exist (optional, may be None)
+            possible_fields = ["id", "childName", "age", "gender", "personalityTraits", "hobbies"]
+            for field in possible_fields:
+                if field in result:
+                    print(f"  - {field}: {result[field]}")
+        else:
+            print(f"\n⚠ PalServer returned None for child_id={PALSERVER_TEST_CHILD_ID} (child may not exist)")
+
+
+class TestRealDatabaseIntegration(unittest.TestCase):
+    """Test against real databases (only runs if USE_REAL_POSTGRES=1 and USE_REAL_MONGODB=1)"""
+
+    def setUp(self):
+        if not (USE_REAL_POSTGRES and USE_REAL_MONGODB):
+            self.skipTest("USE_REAL_POSTGRES and USE_REAL_MONGODB not both enabled")
+
+    def test_real_database_cold_start(self):
+        """Test cold start with real databases (requires all services running)"""
+        from mem0.user_profile.main import UserProfile
+        from mem0.configs.base import MemoryConfig
+
+        # Initialize with real databases
+        config = MemoryConfig()
+        user_profile = UserProfile(config, palserver_base_url=PALSERVER_BASE_URL if USE_REAL_PALSERVER else None)
+
+        # Use a test user ID that won't conflict
+        test_user_id = "test_cold_start_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        try:
+            # Get profile (should be empty initially)
+            profile = user_profile.get_profile(test_user_id)
+
+            self.assertEqual(profile["user_id"], test_user_id)
+            print(f"\n✓ Created test user: {test_user_id}")
+            print(f"  basic_info: {profile['basic_info']}")
+            print(f"  additional_profile keys: {list(profile['additional_profile'].keys())}")
+
+        finally:
+            # Cleanup: delete test user
+            try:
+                user_profile.delete_profile(test_user_id)
+                print(f"✓ Cleaned up test user: {test_user_id}")
+            except Exception as e:
+                print(f"⚠ Failed to cleanup test user {test_user_id}: {e}")
 
 
 if __name__ == '__main__':
