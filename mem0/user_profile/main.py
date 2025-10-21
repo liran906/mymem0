@@ -7,9 +7,12 @@ Provides high-level API for extracting and managing user profiles from conversat
 import logging
 from typing import Dict, Any, List, Optional
 
+from datetime import datetime
+
 from mem0.configs.base import MemoryConfig
 from mem0.user_profile.database import PostgresManager, MongoDBManager
 from mem0.user_profile.profile_manager import ProfileManager
+from mem0.user_profile.palserver_client import fetch_child_summary
 from mem0.utils.factory import LlmFactory
 
 logger = logging.getLogger(__name__)
@@ -45,19 +48,23 @@ class UserProfile:
         profile = user_profile.get_profile(user_id="user123")
     """
 
-    def __init__(self, config: MemoryConfig):
+    def __init__(self, config: MemoryConfig, palserver_base_url: Optional[str] = None):
         """
         Initialize UserProfile
 
         Args:
             config: MemoryConfig instance with user_profile settings
+            palserver_base_url: PalServer base URL for cold start (optional)
+                Example: "http://localhost:8099/pal"
 
         Architecture Note:
             - basic_info (PostgreSQL): Conversation-extracted reference data, NON-authoritative
+              * Exception: Cold start data from PalServer is imported here (see discuss/40-cold_start_implementation.md)
             - additional_profile (MongoDB): Core value - interests, skills, personality
             - See discuss/19-manual_data_decision.md for architectural decisions
         """
         self.config = config
+        self.palserver_base_url = palserver_base_url
 
         # Initialize database managers
         self.postgres = PostgresManager(config.user_profile.postgres)
@@ -196,6 +203,14 @@ class UserProfile:
             # Query additional_profile with options
             additional_profile = self.mongodb.get(user_id, options) or {}
 
+            # Cold start: If user doesn't exist and PalServer is configured, try importing
+            if not basic_info and not additional_profile and self.palserver_base_url:
+                logger.info(f"User {user_id} not found, attempting cold start from PalServer")
+                if self._cold_start_from_palserver(user_id):
+                    # Re-query after cold start
+                    basic_info = self.postgres.get(user_id) or {}
+                    additional_profile = self.mongodb.get(user_id, options) or {}
+
             return {
                 "user_id": user_id,
                 "basic_info": basic_info,
@@ -320,6 +335,154 @@ class UserProfile:
         except Exception as e:
             logger.error(f"Failed to initialize databases: {e}")
             raise
+
+    def _cold_start_from_palserver(self, user_id: str) -> bool:
+        """
+        Attempt to import initial profile data from PalServer (cold start)
+
+        This method is called when a user's profile doesn't exist in MyMem0.
+        It fetches initial data from PalServer and stores it in both databases.
+
+        Args:
+            user_id: User ID (child_id in PalServer)
+
+        Returns:
+            True if data was successfully imported, False otherwise
+
+        Note:
+            This is a special case where basic_info receives data from an external
+            source rather than conversation extraction. See discuss/40-cold_start_implementation.md
+            for architectural justification.
+        """
+        try:
+            # Fetch data from PalServer
+            child_info = fetch_child_summary(user_id, self.palserver_base_url)
+
+            if not child_info:
+                logger.info(f"No data found in PalServer for user {user_id}")
+                return False
+
+            # Convert PalServer data to MyMem0 format
+            basic_info, additional_profile = self._convert_palserver_data(child_info)
+
+            # Store basic_info in PostgreSQL (if any)
+            if basic_info:
+                self.postgres.upsert(user_id, basic_info)
+                logger.info(f"Imported basic_info from PalServer for user {user_id}: {list(basic_info.keys())}")
+
+            # Store additional_profile in MongoDB (if any)
+            if additional_profile:
+                # Import personality items
+                if "personality" in additional_profile:
+                    for item in additional_profile["personality"]:
+                        self.mongodb.add_item(user_id, "personality", item)
+                    logger.info(f"Imported {len(additional_profile['personality'])} personality traits from PalServer")
+
+                # Import interest items
+                if "interests" in additional_profile:
+                    for item in additional_profile["interests"]:
+                        self.mongodb.add_item(user_id, "interests", item)
+                    logger.info(f"Imported {len(additional_profile['interests'])} interests from PalServer")
+
+            logger.info(f"Cold start completed successfully for user {user_id}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Cold start from PalServer failed for user {user_id}: {e}")
+            return False
+
+    def _convert_palserver_data(self, child_info: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Convert PalServer child data to MyMem0 profile format
+
+        Args:
+            child_info: Child data from PalServer API
+
+        Returns:
+            Tuple of (basic_info, additional_profile) dicts
+
+        Example:
+            Input:
+                {
+                    "childName": "小明",
+                    "gender": 1,
+                    "personalityTraits": "开朗,善良,勇敢",
+                    "hobbies": "篮球,音乐,阅读"
+                }
+
+            Output:
+                (
+                    {"nickname": "小明", "gender": "male"},
+                    {
+                        "personality": [
+                            {"name": "开朗", "degree": 3, "evidence": [...]},
+                            ...
+                        ],
+                        "interests": [
+                            {"name": "篮球", "degree": 3, "evidence": [...]},
+                            ...
+                        ]
+                    }
+                )
+        """
+        basic_info = {}
+        additional_profile = {}
+
+        # Convert childName to nickname
+        if child_info.get("childName"):
+            basic_info["nickname"] = child_info["childName"]
+
+        # Convert gender (1->male, 2->female, other->unknown)
+        gender_value = child_info.get("gender")
+        if gender_value == 1:
+            basic_info["gender"] = "male"
+        elif gender_value == 2:
+            basic_info["gender"] = "female"
+        elif gender_value is not None:
+            basic_info["gender"] = "unknown"
+
+        # Evidence timestamp (same for all items)
+        timestamp = datetime.now().isoformat()
+
+        # Convert personalityTraits to personality items
+        personality_traits = child_info.get("personalityTraits")
+        if personality_traits and isinstance(personality_traits, str):
+            traits = [t.strip() for t in personality_traits.split(",") if t.strip()]
+            if traits:
+                additional_profile["personality"] = [
+                    {
+                        "name": trait,
+                        "degree": 3,  # Default medium degree
+                        "evidence": [
+                            {
+                                "text": "Initial profile from user registration",
+                                "timestamp": timestamp
+                            }
+                        ]
+                    }
+                    for trait in traits
+                ]
+
+        # Convert hobbies to interests items
+        hobbies = child_info.get("hobbies")
+        if hobbies and isinstance(hobbies, str):
+            hobby_list = [h.strip() for h in hobbies.split(",") if h.strip()]
+            if hobby_list:
+                additional_profile["interests"] = [
+                    {
+                        "name": hobby,
+                        "degree": 3,  # Default medium degree
+                        "evidence": [
+                            {
+                                "text": "Initial profile from user registration",
+                                "timestamp": timestamp
+                            }
+                        ]
+                    }
+                    for hobby in hobby_list
+                ]
+
+        return basic_info, additional_profile
 
     def close(self):
         """Close database connections"""

@@ -58,6 +58,9 @@ services:
       - MONGODB_URI=mongodb://mongo:mongo@mongodb:27017/
       - MONGODB_DATABASE=mem0
 
+      # PalServer配置 (冷启动)
+      - PALSERVER_BASE_URL=${PALSERVER_BASE_URL}
+
       # 其他配置
       - HISTORY_DB_PATH=/app/history/history.db
       - EMBEDDING_MODEL_DIMS=1536

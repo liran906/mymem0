@@ -52,6 +52,9 @@ DOUBAO_API_KEY = os.environ.get("DOUBAO_API_KEY")
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
 
+# PalServer configuration (for cold start)
+PALSERVER_BASE_URL = os.environ.get("PALSERVER_BASE_URL")
+
 # Neo4j configuration
 # NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
 # NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
@@ -104,7 +107,10 @@ DEFAULT_CONFIG = {
 
 
 MEMORY_INSTANCE = Memory.from_config(DEFAULT_CONFIG)
-USER_PROFILE_INSTANCE = UserProfile(MEMORY_INSTANCE.config)
+USER_PROFILE_INSTANCE = UserProfile(
+    MEMORY_INSTANCE.config,
+    palserver_base_url=PALSERVER_BASE_URL
+)
 
 # Initialize UserProfile databases (auto-create tables if not exist)
 try:

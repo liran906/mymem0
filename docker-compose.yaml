@@ -60,6 +60,8 @@ services:
       # MongoDB配置
       - MONGODB_URI=mongodb://mongo:mongo@mongodb:27017/
       - MONGODB_DATABASE=mem0
+      # PalServer配置 (冷启动)
+      - PALSERVER_BASE_URL=${PALSERVER_BASE_URL:-http://localhost:8099/pal}
       - HISTORY_DB_PATH=/app/history/history.db
       - EMBEDDING_MODEL_DIMS=1536
       # Logging配置

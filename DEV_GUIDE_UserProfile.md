@@ -1048,7 +1048,136 @@ DELETE /profile?user_id=u123
 
 ---
 
-### 6.5 POST /vocab 和 GET /vocab（预留）
+### 6.5 Cold Start Integration (冷启动集成)
+
+**功能概述**：
+
+当用户首次访问MyMem0时，如果PalServer已经存在该用户的基础画像数据（如性格标签、兴趣爱好），系统会自动从PalServer拉取并导入这些数据，避免用户重复输入。
+
+**触发条件**：
+
+- 用户在MyMem0中不存在（basic_info和additional_profile都为空）
+- 配置了PALSERVER_BASE_URL环境变量
+- PalServer接口返回成功
+
+**数据映射规则**：
+
+| PalServer字段 | MyMem0目标位置 | 映射规则 |
+|--------------|---------------|---------|
+| `childName` | `basic_info.nickname` | 直接复制 |
+| `gender` | `basic_info.gender` | `1→"male"`, `2→"female"`, 其他→`"unknown"` |
+| `age` | - | **忽略**（MyMem0只存储birthday） |
+| `personalityTraits` | `additional_profile.personality` | 逗号分隔→多个items，degree=3 |
+| `hobbies` | `additional_profile.interests` | 逗号分隔→多个items，degree=3 |
+
+**配置方法**：
+
+1. 环境变量配置（`.env`）：
+```bash
+# PalServer Configuration (for cold start)
+PALSERVER_BASE_URL=http://localhost:8099/pal
+```
+
+2. Docker Compose配置：
+```yaml
+environment:
+  - PALSERVER_BASE_URL=${PALSERVER_BASE_URL:-http://localhost:8099/pal}
+```
+
+**调用流程**：
+
+```
+用户请求 GET /profile?user_id=12345
+    ↓
+1. 查询PostgreSQL basic_info → 空
+2. 查询MongoDB additional_profile → 空
+    ↓
+3. 检测到用户不存在 且 配置了PALSERVER_BASE_URL
+    ↓
+4. 调用 PalServer: GET /pal/child/12345/summary
+   - 超时: 1秒（集群内部网络）
+   - 失败时: 记录warning，返回空profile（不阻塞）
+    ↓
+5. 转换数据格式（gender映射、逗号分隔处理）
+    ↓
+6. 存储到数据库：
+   - PostgreSQL: nickname, gender
+   - MongoDB: personality items, interests items
+   - Evidence: "Initial profile from user registration"
+    ↓
+7. 重新查询并返回profile
+```
+
+**示例**：
+
+**PalServer响应**：
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12345,
+    "childName": "小明",
+    "age": 8,
+    "gender": 1,
+    "personalityTraits": "开朗,善良,勇敢",
+    "hobbies": "篮球,音乐,阅读"
+  }
+}
+```
+
+**MyMem0存储结果**：
+```json
+{
+  "user_id": "12345",
+  "basic_info": {
+    "nickname": "小明",
+    "gender": "male"
+  },
+  "additional_profile": {
+    "personality": [
+      {
+        "name": "开朗",
+        "degree": 3,
+        "evidence": [
+          {
+            "text": "Initial profile from user registration",
+            "timestamp": "2025-10-21T10:30:45.123456"
+          }
+        ]
+      },
+      {"name": "善良", "degree": 3, "evidence": [...]},
+      {"name": "勇敢", "degree": 3, "evidence": [...]}
+    ],
+    "interests": [
+      {"name": "篮球", "degree": 3, "evidence": [...]},
+      {"name": "音乐", "degree": 3, "evidence": [...]},
+      {"name": "阅读", "degree": 3, "evidence": [...]}
+    ]
+  }
+}
+```
+
+**错误处理**：
+
+- **PalServer超时/不可达**：记录warning日志，返回空profile，用户可以正常对话
+- **PalServer返回错误**：记录warning日志，返回空profile
+- **数据格式异常**：记录warning日志，跳过异常字段
+- **并发请求**：数据库upsert天然幂等，无副作用
+
+**架构说明**：
+
+⚠️ **架构原则Trade-off**: `basic_info`的设计原则是"conversation-extracted reference data"，但冷启动功能导入的是PalServer的权威数据。这是为了优化用户体验而接受的架构妥协。详见 `discuss/40-cold_start_implementation.md`。
+
+**禁用方法**：
+
+如需禁用冷启动功能，将`PALSERVER_BASE_URL`设置为空或不设置即可：
+```bash
+PALSERVER_BASE_URL=
+```
+
+---
+
+### 6.6 POST /vocab 和 GET /vocab（预留）
 
 **实现**：返回 501 Not Implemented
 
