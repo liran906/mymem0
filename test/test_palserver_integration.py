@@ -117,15 +117,21 @@ class TestPalServerClient(unittest.TestCase):
 class TestDataConversion(unittest.TestCase):
     """Test PalServer data to MyMem0 format conversion"""
 
+    def setUp(self):
+        """Create a mock UserProfile instance for testing conversion logic"""
+        from mem0.user_profile.main import UserProfile
+
+        # Create UserProfile instance with mocked database managers
+        with patch('mem0.user_profile.main.PostgresManager'), \
+             patch('mem0.user_profile.main.MongoDBManager'), \
+             patch('mem0.user_profile.main.LlmFactory'):
+
+            from mem0.configs.base import MemoryConfig
+            config = MemoryConfig()
+            self.user_profile = UserProfile(config)
+
     def test_convert_full_data(self):
         """Test conversion with complete data"""
-        from mem0.user_profile.main import UserProfile
-        from mem0.configs.base import MemoryConfig
-
-        # Create a minimal config for testing
-        config = MemoryConfig()
-        user_profile = UserProfile(config)
-
         child_info = {
             "id": 12345,
             "childName": "小明",
@@ -135,7 +141,7 @@ class TestDataConversion(unittest.TestCase):
             "hobbies": "篮球,音乐,阅读"
         }
 
-        basic_info, additional_profile = user_profile._convert_palserver_data(child_info)
+        basic_info, additional_profile = self.user_profile._convert_palserver_data(child_info)
 
         # Check basic_info
         self.assertEqual(basic_info["nickname"], "小明")
@@ -159,38 +165,26 @@ class TestDataConversion(unittest.TestCase):
 
     def test_convert_gender_mapping(self):
         """Test gender value mapping (1->male, 2->female, other->unknown)"""
-        from mem0.user_profile.main import UserProfile
-        from mem0.configs.base import MemoryConfig
-
-        config = MemoryConfig()
-        user_profile = UserProfile(config)
-
         # Test male
-        basic_info, _ = user_profile._convert_palserver_data({"gender": 1})
+        basic_info, _ = self.user_profile._convert_palserver_data({"gender": 1})
         self.assertEqual(basic_info["gender"], "male")
 
         # Test female
-        basic_info, _ = user_profile._convert_palserver_data({"gender": 2})
+        basic_info, _ = self.user_profile._convert_palserver_data({"gender": 2})
         self.assertEqual(basic_info["gender"], "female")
 
         # Test unknown
-        basic_info, _ = user_profile._convert_palserver_data({"gender": 99})
+        basic_info, _ = self.user_profile._convert_palserver_data({"gender": 99})
         self.assertEqual(basic_info["gender"], "unknown")
 
         # Test None (should not set gender)
-        basic_info, _ = user_profile._convert_palserver_data({"gender": None})
+        basic_info, _ = self.user_profile._convert_palserver_data({"gender": None})
         self.assertNotIn("gender", basic_info)
 
     def test_convert_empty_fields(self):
         """Test handling of empty/null fields"""
-        from mem0.user_profile.main import UserProfile
-        from mem0.configs.base import MemoryConfig
-
-        config = MemoryConfig()
-        user_profile = UserProfile(config)
-
         # Test empty strings
-        basic_info, additional_profile = user_profile._convert_palserver_data({
+        basic_info, additional_profile = self.user_profile._convert_palserver_data({
             "childName": "",
             "personalityTraits": "",
             "hobbies": ""
@@ -201,7 +195,7 @@ class TestDataConversion(unittest.TestCase):
         self.assertNotIn("interests", additional_profile)
 
         # Test None values
-        basic_info, additional_profile = user_profile._convert_palserver_data({
+        basic_info, additional_profile = self.user_profile._convert_palserver_data({
             "childName": None,
             "personalityTraits": None,
             "hobbies": None
@@ -213,18 +207,12 @@ class TestDataConversion(unittest.TestCase):
 
     def test_convert_whitespace_handling(self):
         """Test trimming whitespace in comma-separated values"""
-        from mem0.user_profile.main import UserProfile
-        from mem0.configs.base import MemoryConfig
-
-        config = MemoryConfig()
-        user_profile = UserProfile(config)
-
         child_info = {
             "personalityTraits": " 开朗 , 善良 , 勇敢 ",
             "hobbies": "篮球,  音乐  ,阅读"
         }
 
-        _, additional_profile = user_profile._convert_palserver_data(child_info)
+        _, additional_profile = self.user_profile._convert_palserver_data(child_info)
 
         # Check trimmed values
         self.assertEqual(additional_profile["personality"][0]["name"], "开朗")
@@ -235,10 +223,11 @@ class TestDataConversion(unittest.TestCase):
 class TestColdStartIntegration(unittest.TestCase):
     """Test end-to-end cold start integration"""
 
-    @patch('mem0.user_profile.palserver_client.fetch_child_summary')
-    @patch('mem0.user_profile.main.PostgresManager')
+    @patch('mem0.user_profile.main.LlmFactory')
     @patch('mem0.user_profile.main.MongoDBManager')
-    def test_cold_start_user_not_exists(self, mock_mongo, mock_pg, mock_fetch):
+    @patch('mem0.user_profile.main.PostgresManager')
+    @patch('mem0.user_profile.main.fetch_child_summary')  # Patch where it's imported, not where it's defined
+    def test_cold_start_user_not_exists(self, mock_fetch, mock_pg, mock_mongo, mock_llm):
         """Test cold start when user doesn't exist"""
         from mem0.user_profile.main import UserProfile
         from mem0.configs.base import MemoryConfig
@@ -252,36 +241,68 @@ class TestColdStartIntegration(unittest.TestCase):
             "hobbies": "篮球,音乐"
         }
 
-        # Mock database returns empty initially
+        # Mock database managers
         mock_pg_instance = mock_pg.return_value
-        mock_pg_instance.get.return_value = None  # User doesn't exist
+        mock_pg_instance.get.side_effect = [None, {"nickname": "小明", "gender": "male"}]  # First None, then data after cold start
+        mock_pg_instance.upsert.return_value = True
 
         mock_mongo_instance = mock_mongo.return_value
-        mock_mongo_instance.get.return_value = None  # User doesn't exist
+        mock_mongo_instance.get.side_effect = [None, {}]  # First None, then empty dict after cold start
+        mock_mongo_instance.add_item.return_value = True
 
         # Initialize UserProfile with PalServer URL
         config = MemoryConfig()
         user_profile = UserProfile(config, palserver_base_url="http://localhost:8099/pal")
 
         # Call get_profile (should trigger cold start)
-        # Note: This will fail because we need to mock more deeply
-        # This is a placeholder for demonstration
+        result = user_profile.get_profile("12345")
 
-        # Verify fetch_child_summary was called
-        # Verify postgres.upsert was called
-        # Verify mongodb.add_item was called
+        # Verify fetch_child_summary was called with correct params
+        mock_fetch.assert_called_once_with("12345", "http://localhost:8099/pal")
 
-    def test_cold_start_disabled(self):
+        # Verify postgres.upsert was called with converted data
+        mock_pg_instance.upsert.assert_called_once()
+        upsert_call_args = mock_pg_instance.upsert.call_args
+        self.assertEqual(upsert_call_args[0][0], "12345")  # user_id
+        self.assertEqual(upsert_call_args[0][1]["nickname"], "小明")
+        self.assertEqual(upsert_call_args[0][1]["gender"], "male")
+
+        # Verify mongodb.add_item was called (2 personality + 2 interests = 4 calls)
+        self.assertEqual(mock_mongo_instance.add_item.call_count, 4)
+
+        # Verify result contains user_id
+        self.assertEqual(result["user_id"], "12345")
+
+    @patch('mem0.user_profile.main.LlmFactory')
+    @patch('mem0.user_profile.main.MongoDBManager')
+    @patch('mem0.user_profile.main.PostgresManager')
+    @patch('mem0.user_profile.main.fetch_child_summary')  # Patch where it's imported
+    def test_cold_start_disabled(self, mock_fetch, mock_pg, mock_mongo, mock_llm):
         """Test that cold start doesn't run when PalServer URL is not configured"""
         from mem0.user_profile.main import UserProfile
         from mem0.configs.base import MemoryConfig
 
+        # Mock database returns None
+        mock_pg_instance = mock_pg.return_value
+        mock_pg_instance.get.return_value = None
+
+        mock_mongo_instance = mock_mongo.return_value
+        mock_mongo_instance.get.return_value = None
+
+        # Initialize without palserver_base_url
         config = MemoryConfig()
-        # No palserver_base_url provided
         user_profile = UserProfile(config, palserver_base_url=None)
 
-        # Cold start should not run (palserver_base_url is None)
-        # This test verifies the feature can be disabled
+        # Call get_profile
+        result = user_profile.get_profile("12345")
+
+        # Verify fetch_child_summary was NOT called (cold start disabled)
+        mock_fetch.assert_not_called()
+
+        # Verify result is empty
+        self.assertEqual(result["user_id"], "12345")
+        self.assertEqual(result["basic_info"], {})
+        self.assertEqual(result["additional_profile"], {})
 
 
 if __name__ == '__main__':
