@@ -40,13 +40,17 @@ services:
   mem0-service:
     build:
       context: .
-#      dockerfile: Dockerfile_dev
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile_dev
+#      dockerfile: Dockerfile
     container_name: mem0-api
     ports:
       - "18088:8000"
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      # VolcEngine DeepSeek配置 (优先使用)
+      - VOLCENGINE_DEEPSEEK_API_KEY=${VOLCENGINE_DEEPSEEK_API_KEY}
+      - VOLCENGINE_DEEPSEEK_ENDPOINT_ID=${VOLCENGINE_DEEPSEEK_ENDPOINT_ID}
+      - VOLCENGINE_DEEPSEEK_BASE_URL=${VOLCENGINE_DEEPSEEK_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DOUBAO_API_KEY=${DOUBAO_API_KEY}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}

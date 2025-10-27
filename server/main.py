@@ -52,6 +52,15 @@ DOUBAO_API_KEY = os.environ.get("DOUBAO_API_KEY")
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
 
+# VolcEngine DeepSeek API Configuration (优先使用，可选)
+# 如果配置了火山引擎，将优先使用火山引擎的DeepSeek；否则使用官方DeepSeek
+VOLCENGINE_DEEPSEEK_API_KEY = os.environ.get("VOLCENGINE_DEEPSEEK_API_KEY")
+VOLCENGINE_DEEPSEEK_ENDPOINT_ID = os.environ.get("VOLCENGINE_DEEPSEEK_ENDPOINT_ID")
+VOLCENGINE_DEEPSEEK_BASE_URL = os.environ.get(
+    "VOLCENGINE_DEEPSEEK_BASE_URL",
+    "https://ark.cn-beijing.volces.com/api/v3"
+)
+
 # PalServer configuration (for cold start)
 PALSERVER_BASE_URL = os.environ.get("PALSERVER_BASE_URL")
 
@@ -87,8 +96,10 @@ DEFAULT_CONFIG = {
     "llm": {
         "provider": "deepseek",
         "config": {
-            "api_key": DEEPSEEK_API_KEY,
-            "model": "deepseek-chat",
+            # 优先使用火山引擎DeepSeek，否则使用官方DeepSeek
+            "api_key": VOLCENGINE_DEEPSEEK_API_KEY or DEEPSEEK_API_KEY,
+            "model": VOLCENGINE_DEEPSEEK_ENDPOINT_ID or "deepseek-chat",
+            "deepseek_base_url": VOLCENGINE_DEEPSEEK_BASE_URL if VOLCENGINE_DEEPSEEK_API_KEY else None,
             "temperature": 0.2,
             "max_tokens": 2000
         }
